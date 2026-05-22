@@ -1,5 +1,12 @@
 {
   "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/sql-wasm.wasm", "destination": "/sql-wasm.wasm" },
+    { "source": "/favicon.svg", "destination": "/favicon.svg" },
+    { "source": "/manifest.json", "destination": "/manifest.json" },
+    { "source": "/sw.js", "destination": "/sw.js" },
+    { "source": "/icons.svg", "destination": "/icons.svg" },
+    { "source": "/assets/(.*)", "destination": "/assets/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
@@ -12,6 +19,13 @@
     {
       "source": "/assets/(.*)",
       "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/sql-wasm.wasm",
+      "headers": [
+        { "key": "Content-Type", "value": "application/wasm" },
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     }
