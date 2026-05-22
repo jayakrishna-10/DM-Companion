@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Papa from 'papaparse'
 import { useDatabase } from '@/hooks/useDatabase'
 import { useSync } from '@/hooks/useSync'
 import { Button } from '@/components/ui/Button'
@@ -86,7 +87,25 @@ export function Settings() {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (!file) return
       const text = await file.text()
-      const rows = parseCSV(text)
+      const result = Papa.parse<Record<string, string>>(text, { header: true, skipEmptyLines: true })
+      const rows = result.data.map(row => {
+        let dateStr = (row['Date'] || '').trim()
+        try {
+          const parsed = new Date(dateStr)
+          if (!isNaN(parsed.getTime())) {
+            dateStr = parsed.toISOString().split('T')[0]
+          }
+        } catch { }
+        return {
+          note: (row['Note'] || '').trim(),
+          date: dateStr,
+          noteType: (row['Note Type'] || 'Activity').trim(),
+          object: (row['Object'] || '').trim(),
+          objectGroup: (row['Object Group'] || '').trim(),
+          objectType: (row['Object Type'] || '').trim(),
+          source: (row['Source'] || '').trim(),
+        }
+      })
       const count = importData(rows)
       toast(`Imported ${count} entries`, 'success')
     }
@@ -199,60 +218,4 @@ export function Settings() {
       </section>
     </div>
   )
-}
-
-function parseCSV(text: string): { note: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string }[] {
-  const lines = text.split('\n').filter(l => l.trim())
-  if (lines.length < 2) return []
-
-  const rows: { note: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string }[] = []
-
-  for (let i = 1; i < lines.length; i++) {
-    const match = lines[i].match(/("(?:[^"]|"")*"|[^,]*)(?:,("(?:[^"]|"")*"|[^,]*))*/g)
-    if (!match) continue
-
-    const fields: string[] = []
-    let remaining = lines[i]
-    while (remaining.length > 0) {
-      if (remaining.startsWith('"')) {
-        const endQuote = remaining.indexOf('"', 1)
-        if (endQuote !== -1) {
-          fields.push(remaining.substring(1, endQuote).replace(/""/g, '"').trim())
-          remaining = remaining.substring(endQuote + 1)
-          if (remaining.startsWith(',')) remaining = remaining.substring(1)
-        } else break
-      } else {
-        const commaIdx = remaining.indexOf(',')
-        if (commaIdx !== -1) {
-          fields.push(remaining.substring(0, commaIdx).trim())
-          remaining = remaining.substring(commaIdx + 1)
-        } else {
-          fields.push(remaining.trim())
-          break
-        }
-      }
-    }
-
-    if (fields.length >= 7) {
-      let dateStr = fields[1] || ''
-      try {
-        const parsed = new Date(dateStr)
-        if (!isNaN(parsed.getTime())) {
-          dateStr = parsed.toISOString().split('T')[0]
-        }
-      } catch { }
-
-      rows.push({
-        note: fields[0] || '',
-        date: dateStr,
-        noteType: fields[2] || 'Activity',
-        object: fields[3] || '',
-        objectGroup: fields[4] || '',
-        objectType: fields[5] || '',
-        source: fields[6] || '',
-      })
-    }
-  }
-
-  return rows
 }

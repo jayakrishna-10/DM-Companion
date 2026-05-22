@@ -4,6 +4,7 @@ import { NOTE_TYPES } from '@/types'
 
 let db: Database | null = null
 let saveTimeout: ReturnType<typeof setTimeout> | null = null
+let idbDb: IDBDatabase | null = null
 
 const DB_KEY = 'dm-companion-db'
 
@@ -91,18 +92,49 @@ export function scheduleSave() {
   saveTimeout = setTimeout(() => saveDatabase(), 300)
 }
 
-async function saveDatabase() {
+async function openIDB(): Promise<IDBDatabase> {
+  if (idbDb) return idbDb
+  return new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open('dm-companion', 1)
+    request.onupgradeneeded = () => {
+      const idb = request.result
+      if (!idb.objectStoreNames.contains('database')) {
+        idb.createObjectStore('database')
+      }
+    }
+    request.onsuccess = () => {
+      idbDb = request.result
+      resolve(idbDb!)
+    }
+    request.onerror = () => reject(request.error)
+  })
+}
+
+async function saveDatabase(): Promise<void> {
   if (!db) return
   const data = db.export()
   const buffer = new Uint8Array(data)
-  const idb = await new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open('dm-companion', 1)
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error)
+  const idb = await openIDB()
+  return new Promise<void>((resolve, reject) => {
+    const tx = idb.transaction('database', 'readwrite')
+    const store = tx.objectStore('database')
+    const putReq = store.put(buffer, DB_KEY)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+    putReq.onerror = () => reject(putReq.error)
   })
-  const tx = idb.transaction('database', 'readwrite')
-  const store = tx.objectStore('database')
-  store.put(buffer, DB_KEY)
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      if (saveTimeout) {
+        clearTimeout(saveTimeout)
+        saveTimeout = null
+      }
+      saveDatabase()
+    }
+  })
 }
 
 export function getDatabase(): Database {
@@ -181,6 +213,13 @@ function rowToEntry(row: unknown[]): LogEntry {
     updatedAt: row[10] as string,
     synced: row[11] as number,
   }
+}
+
+export function getEntry(id: number): LogEntry | null {
+  const d = getDatabase()
+  const result = d.exec('SELECT * FROM log_entries WHERE id = ?', [id])
+  if (result.length === 0 || result[0].values.length === 0) return null
+  return rowToEntry(result[0].values[0])
 }
 
 export function getEntries(options?: {
@@ -321,18 +360,21 @@ export function searchEntries(query: string, limit = 50): LogEntry[] {
 export function importFromCSV(rows: { note: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string }[]): number {
   const d = getDatabase()
   let imported = 0
-  for (const row of rows) {
-    try {
+  d.run('BEGIN TRANSACTION')
+  try {
+    for (const row of rows) {
       d.run(
         'INSERT INTO log_entries (note, date, note_type, object, object_group, object_type, source) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [row.note, row.date, row.noteType, row.object, row.objectGroup, row.objectType, row.source]
       )
       imported++
-    } catch {
-      // skip duplicates or errors
     }
+    d.run('COMMIT')
+  } catch {
+    d.run('ROLLBACK')
+    imported = 0
   }
-  scheduleSave()
+  if (imported > 0) scheduleSave()
   return imported
 }
 

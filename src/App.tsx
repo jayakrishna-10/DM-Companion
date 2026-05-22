@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router'
+import { HashRouter, Routes, Route } from 'react-router'
 import { DatabaseProvider } from '@/hooks/useDatabase'
 import { AppShell } from '@/components/layout/AppShell'
 import { Home } from '@/pages/Home'
@@ -10,7 +10,7 @@ import { Toaster } from '@/components/ui/Toaster'
 export default function App() {
   return (
     <DatabaseProvider>
-      <BrowserRouter>
+      <HashRouter>
         <div className="noise-overlay" />
         <Routes>
           <Route element={<AppShell />}>

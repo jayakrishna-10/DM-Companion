@@ -11,10 +11,11 @@ import { toast } from '@/components/ui/Toaster'
 interface EntryFormProps {
   initialData?: LogEntryFormData
   onSubmit?: (data: LogEntryFormData) => void
+  editId?: number
 }
 
-export function EntryForm({ initialData, onSubmit }: EntryFormProps) {
-  const { addEntry, getHierarchy } = useDatabase()
+export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
+  const { addEntry, editEntry, getHierarchy } = useDatabase()
   const [noteType, setNoteType] = useState<NoteType>(initialData?.noteType || 'Activity')
   const [note, setNote] = useState(initialData?.note || '')
   const [date, setDate] = useState(initialData?.date || new Date().toISOString().split('T')[0])
@@ -63,7 +64,10 @@ export function EntryForm({ initialData, onSubmit }: EntryFormProps) {
     setIsSubmitting(true)
     const data: LogEntryFormData = { note, date, noteType, object, objectGroup, objectType, source }
 
-    if (onSubmit) {
+    if (editId !== undefined) {
+      editEntry(editId, data)
+      toast('Entry updated', 'success')
+    } else if (onSubmit) {
       onSubmit(data)
     } else {
       addEntry(data)

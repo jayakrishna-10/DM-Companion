@@ -6,7 +6,7 @@ import { resolve } from 'path'
 
 // PWA plugin causes build failures on paths with parentheses/special chars
 // Enable only in CI/Vercel where paths are clean
-const enablePWA = process.env.ENABLE_PWA === 'true'
+const enablePWA = process.env.DISABLE_PWA !== 'true'
 
 export default defineConfig({
   plugins: [

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router'
 import { useDatabase } from '@/hooks/useDatabase'
 import { EntryRow } from '@/components/entry/EntryRow'
 import { EntryDetailSheet } from '@/components/entry/EntryDetailSheet'
@@ -8,6 +9,7 @@ import { NOTE_TYPES, NOTE_TYPE_COLORS } from '@/types'
 import { toast } from '@/components/ui/Toaster'
 
 export function History() {
+  const navigate = useNavigate()
   const { filterEntries, counts, removeEntry } = useDatabase()
   const [activeType, setActiveType] = useState<NoteType | 'all'>('all')
   const [search, setSearch] = useState('')
@@ -95,7 +97,7 @@ export function History() {
         entry={selectedEntry}
         isOpen={sheetOpen}
         onClose={() => setSheetOpen(false)}
-        onEdit={(_entry) => { setSheetOpen(false) }}
+        onEdit={(entry) => { setSheetOpen(false); navigate(`/new?edit=${entry.id}`) }}
         onDelete={(id) => {
           removeEntry(id)
           setSheetOpen(false)

@@ -127,6 +127,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     try {
       const unsynced = getUnsyncedEntries()
       const database = getDatabase()
+      const syncedIds: number[] = []
       for (const entry of unsynced) {
         const res = await fetch('https://api.notion.com/v1/pages', {
           method: 'POST',
@@ -150,12 +151,17 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
         })
         if (res.ok) {
           const data = await res.json()
-          database.run('UPDATE log_entries SET notion_page_id = ?, synced = 1 WHERE id = ?', [data.id, entry.id])
+          syncedIds.push(entry.id)
+          database.run('UPDATE log_entries SET notion_page_id = ? WHERE id = ?', [data.id, entry.id])
         }
       }
-      markAsSynced(unsynced.map(e => e.id))
-      setSyncStatus('synced')
-      setLastSyncTime(new Date().toLocaleTimeString())
+      if (syncedIds.length > 0) {
+        markAsSynced(syncedIds)
+      }
+      setSyncStatus(syncedIds.length === unsynced.length ? 'synced' : 'error')
+      if (syncedIds.length > 0) {
+        setLastSyncTime(new Date().toLocaleTimeString())
+      }
       refreshEntries()
     } catch {
       setSyncStatus('error')
