@@ -21,7 +21,7 @@ export default function App() {
           </Route>
         </Routes>
         <Toaster />
-      </BrowserRouter>
+      </HashRouter>
     </DatabaseProvider>
   )
 }
