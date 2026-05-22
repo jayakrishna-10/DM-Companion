@@ -122,15 +122,15 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
         if (pullRes.ok) {
           const pullData = await pullRes.json()
           const existingPageIds = getExistingNotionPageIds()
-          const newEntries = (pullData.entries as { note: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string; notionPageId: string }[]).filter((e) => !existingPageIds.has(e.notionPageId))
+const newEntries = (pullData.entries as { note: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string; notionPageId: string }[]).filter((e) => !existingPageIds.has(e.notionPageId))
 
-          if (newEntries.length > 0) {
-            console.log(`[sync] Pulling ${newEntries.length} new entries from Notion`)
-            for (const entry of newEntries) {
-              insertEntryFromNotion({
-                note: entry.note,
-                date: entry.date,
-                noteType: entry.noteType,
+            if (newEntries.length > 0) {
+              console.log(`[sync] Pulling ${newEntries.length} new entries from Notion`)
+              for (const entry of newEntries) {
+                insertEntryFromNotion({
+                  note: entry.note,
+                  date: entry.date,
+                  noteType: entry.noteType as NoteType,
                 object: entry.object,
                 objectGroup: entry.objectGroup,
                 objectType: entry.objectType,
