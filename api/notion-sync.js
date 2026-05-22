@@ -47,7 +47,7 @@ export default async function handler(req, res) {
       properties['Object Type'] = { select: { name: entry.objectType } }
     }
     if (entry.source) {
-      properties['Source'] = { select: { name: entry.source } }
+      properties['Source'] = { multi_select: [{ name: entry.source }] }
     }
 
     try {
