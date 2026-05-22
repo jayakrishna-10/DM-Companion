@@ -13,14 +13,14 @@ const tabs = [
 
 export function AppShell() {
   const location = useLocation()
-  const { syncStatus, lastSyncTime } = useDatabase()
+  const { syncStatus, lastSyncTime, syncToNotion } = useDatabase()
 
   return (
     <div className="flex flex-col min-h-dvh bg-bg text-text-primary">
       <header className="sticky top-0 z-30 glass-strong">
         <div className="flex items-center justify-between px-4 h-12">
           <h1 className="text-base font-bold gradient-text">DM Companion</h1>
-          <SyncIndicator status={syncStatus} lastSyncTime={lastSyncTime} />
+          <SyncIndicator status={syncStatus} lastSyncTime={lastSyncTime} onSync={syncToNotion} />
         </div>
       </header>
 

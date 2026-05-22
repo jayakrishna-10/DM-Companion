@@ -66,6 +66,18 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // Hourly auto-sync
+  useEffect(() => {
+    const HOUR = 60 * 60 * 1000
+    const interval = setInterval(() => {
+      if (navigator.onLine) {
+        console.log('[sync] Hourly auto-sync triggered')
+        syncToNotion()
+      }
+    }, HOUR)
+    return () => clearInterval(interval)
+  }, [syncToNotion])
+
   const addEntry = useCallback((entry: LogEntryFormData): number => {
     const id = insertEntry({
       note: entry.note,
@@ -77,8 +89,10 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
       source: entry.source,
     })
     refreshEntries()
+    // Auto-sync the new entry to Notion
+    syncToNotion()
     return id
-  }, [refreshEntries])
+  }, [refreshEntries, syncToNotion])
 
   const editEntry = useCallback((id: number, entry: Partial<LogEntryFormData>) => {
     updateEntry(id, {
