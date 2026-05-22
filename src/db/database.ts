@@ -378,6 +378,34 @@ export function importFromCSV(rows: { note: string; date: string; noteType: stri
   return imported
 }
 
+export function getExistingNotionPageIds(): Set<string> {
+  const d = getDatabase()
+  const result = d.exec("SELECT notion_page_id FROM log_entries WHERE notion_page_id IS NOT NULL AND notion_page_id != ''")
+  if (result.length === 0) return new Set()
+  return new Set(result[0].values.map((r: unknown[]) => r[0] as string))
+}
+
+export function insertEntryFromNotion(entry: {
+  note: string
+  date: string
+  noteType: NoteType
+  object?: string
+  objectGroup?: string
+  objectType?: string
+  source?: string
+  notionPageId: string
+}): number {
+  const d = getDatabase()
+  d.run(
+    'INSERT INTO log_entries (note, date, note_type, object, object_group, object_type, source, notion_page_id, synced) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)',
+    [entry.note, entry.date, entry.noteType, entry.object || '', entry.objectGroup || '', entry.objectType || '', entry.source || '', entry.notionPageId]
+  )
+  const result = d.exec('SELECT last_insert_rowid() as id')
+  const id = result[0].values[0][0] as number
+  scheduleSave()
+  return id
+}
+
 export function clearAllData(): void {
   const d = getDatabase()
   d.run('DELETE FROM log_entries')

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
-import { initDatabase, getDatabase, insertEntry, updateEntry, deleteEntry, getEntriesByDate, getEntryCountsByType, searchEntries, getEntries, importFromCSV, clearAllData, exportAllEntries, getObjectHierarchy, getUnsyncedEntries, markAsSynced } from '@/db/database'
+import { initDatabase, getDatabase, insertEntry, insertEntryFromNotion, updateEntry, deleteEntry, getEntriesByDate, getEntryCountsByType, searchEntries, getEntries, importFromCSV, clearAllData, exportAllEntries, getObjectHierarchy, getUnsyncedEntries, getExistingNotionPageIds, markAsSynced } from '@/db/database'
 import { seedDatabase } from '@/db/seed'
 import type { LogEntry, LogEntryFormData, NoteType, ObjectHierarchy, SyncStatus } from '@/types'
 
@@ -115,14 +115,51 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
   const syncToNotion = useCallback(async () => {
     setSyncStatus('syncing')
     try {
+      // --- PULL from Notion first ---
+      console.log('[sync] Pulling entries from Notion...')
+      try {
+        const pullRes = await fetch('/api/notion-pull')
+        if (pullRes.ok) {
+          const pullData = await pullRes.json()
+          const existingPageIds = getExistingNotionPageIds()
+          const newEntries = pullData.entries.filter(e => !existingPageIds.has(e.notionPageId))
+
+          if (newEntries.length > 0) {
+            console.log(`[sync] Pulling ${newEntries.length} new entries from Notion`)
+            for (const entry of newEntries) {
+              insertEntryFromNotion({
+                note: entry.note,
+                date: entry.date,
+                noteType: entry.noteType,
+                object: entry.object,
+                objectGroup: entry.objectGroup,
+                objectType: entry.objectType,
+                source: entry.source,
+                notionPageId: entry.notionPageId,
+              })
+            }
+            refreshEntries()
+          } else {
+            console.log('[sync] No new entries from Notion')
+          }
+        } else {
+          const errData = await pullRes.json().catch(() => ({}))
+          console.error('[sync] Pull from Notion failed:', errData.error || pullRes.statusText)
+        }
+      } catch (pullErr) {
+        console.error('[sync] Pull from Notion error:', pullErr)
+      }
+
+      // --- PUSH unsynced local entries to Notion ---
       const unsynced = getUnsyncedEntries()
       if (unsynced.length === 0) {
-        console.log('[sync] No unsynced entries — already up to date')
+        console.log('[sync] No unsynced entries to push')
         setSyncStatus('synced')
+        setLastSyncTime(new Date().toLocaleTimeString())
         return
       }
 
-      console.log(`[sync] Syncing ${unsynced.length} unsynced entries to Notion...`)
+      console.log(`[sync] Pushing ${unsynced.length} unsynced entries to Notion...`)
 
       const res = await fetch('/api/notion-sync', {
         method: 'POST',
@@ -149,7 +186,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
       }
 
       const data = await res.json()
-      console.log(`[sync] Result: ${data.synced.length} synced, ${data.failed.length} failed`)
+      console.log(`[sync] Push result: ${data.synced.length} synced, ${data.failed.length} failed`)
 
       if (data.failed.length > 0) {
         console.error('[sync] Failed entries:', data.failed)
@@ -168,9 +205,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
       }
 
       setSyncStatus(data.failed.length === 0 ? 'synced' : 'error')
-      if (syncedIds.length > 0) {
-        setLastSyncTime(new Date().toLocaleTimeString())
-      }
+      setLastSyncTime(new Date().toLocaleTimeString())
       refreshEntries()
     } catch (err) {
       console.error('[sync] Network or unexpected error:', err)
