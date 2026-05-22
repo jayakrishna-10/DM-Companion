@@ -1,14 +1,4 @@
 {
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/sql-wasm.wasm", "destination": "/sql-wasm.wasm" },
-    { "source": "/favicon.svg", "destination": "/favicon.svg" },
-    { "source": "/manifest.json", "destination": "/manifest.json" },
-    { "source": "/sw.js", "destination": "/sw.js" },
-    { "source": "/icons.svg", "destination": "/icons.svg" },
-    { "source": "/assets/(.*)", "destination": "/assets/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ],
   "headers": [
     {
       "source": "/sw.js",
