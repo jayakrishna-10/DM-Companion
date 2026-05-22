@@ -66,34 +66,6 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Hourly auto-sync
-  useEffect(() => {
-    const HOUR = 60 * 60 * 1000
-    const interval = setInterval(() => {
-      if (navigator.onLine) {
-        console.log('[sync] Hourly auto-sync triggered')
-        syncToNotion()
-      }
-    }, HOUR)
-    return () => clearInterval(interval)
-  }, [syncToNotion])
-
-  const addEntry = useCallback((entry: LogEntryFormData): number => {
-    const id = insertEntry({
-      note: entry.note,
-      date: entry.date,
-      noteType: entry.noteType,
-      object: entry.object,
-      objectGroup: entry.objectGroup,
-      objectType: entry.objectType,
-      source: entry.source,
-    })
-    refreshEntries()
-    // Auto-sync the new entry to Notion
-    syncToNotion()
-    return id
-  }, [refreshEntries, syncToNotion])
-
   const editEntry = useCallback((id: number, entry: Partial<LogEntryFormData>) => {
     updateEntry(id, {
       note: entry.note,
@@ -205,6 +177,34 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
       setSyncStatus('error')
     }
   }, [refreshEntries])
+
+  // Auto-sync on new entry
+  const addEntry = useCallback((entry: LogEntryFormData): number => {
+    const id = insertEntry({
+      note: entry.note,
+      date: entry.date,
+      noteType: entry.noteType,
+      object: entry.object,
+      objectGroup: entry.objectGroup,
+      objectType: entry.objectType,
+      source: entry.source,
+    })
+    refreshEntries()
+    syncToNotion()
+    return id
+  }, [refreshEntries, syncToNotion])
+
+  // Hourly auto-sync
+  useEffect(() => {
+    const HOUR = 60 * 60 * 1000
+    const interval = setInterval(() => {
+      if (navigator.onLine) {
+        console.log('[sync] Hourly auto-sync triggered')
+        syncToNotion()
+      }
+    }, HOUR)
+    return () => clearInterval(interval)
+  }, [syncToNotion])
 
   return (
     <DatabaseContext.Provider value={{
