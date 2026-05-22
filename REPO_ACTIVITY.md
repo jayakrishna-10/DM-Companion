@@ -1,6 +1,6 @@
 # DM Companion — Repository Activity Log
 
-> **Last Updated**: 2026-05-22 (Round 1 fixes applied)
+> **Last Updated**: 2026-05-22 (Round 2 — production hotfixes applied)
 > **Purpose**: Track completed and pending work so development can resume from where it left off.
 
 ---
@@ -31,6 +31,11 @@
 | H6 | **Made CSV import atomic** — Wrapped `importFromCSV` in `BEGIN TRANSACTION` / `COMMIT`. On error, `ROLLBACK` prevents partial data. | `database.ts` | 2026-05-22 | Returns 0 imported on rollback. |
 | H7 | **Replaced manual CSV parser with papaparse** — Removed ~50 lines of fragile hand-rolled parsing. Added `papaparse` + `@types/papaparse` dependencies. | `Settings.tsx`, `package.json` | 2026-05-22 | Uses `Papa.parse(text, { header: true, skipEmptyLines: true })`. Maps header-keyed rows to expected format. |
 | M3 | **Removed viewport zoom blocking** — Removed `maximum-scale=1.0` and `user-scalable=no` from viewport meta tag. | `index.html` | 2026-05-22 | Improves accessibility for low-vision users. |
+| P0 | **Removed restrictive CSP** — CSP meta tag was blocking sql.js WASM fetch and inline scripts, causing complete app failure. Removed for now. | `index.html` | 2026-05-22 | App loads correctly now. CSP can be re-added later with proper nonce/hash support. |
+| P0 | **Bundled sql.js WASM locally** — Copied `sql-wasm.wasm` from `node_modules/sql.js/dist/` to `public/`. Updated `database.ts` to load from `/${file}` instead of CDN. | `database.ts`, `public/sql-wasm.wasm` | 2026-05-22 | Eliminates CDN dependency. Works fully offline. |
+| P0 | **Added database init error handling** — `initDatabase()` catch block prevents app from hanging on WASM load failure. Sets `isReady=true` and `syncStatus='offline'` on error. | `useDatabase.tsx` | 2026-05-22 | Graceful degradation instead of infinite loading. |
+| P0 | **Created Vercel serverless functions for Notion** — `api/notion-test.js` tests connection. `api/notion-sync.js` syncs entries. Both read `NOTION_API_KEY` and `NOTION_DATABASE_ID` from env vars. | `api/notion-test.js`, `api/notion-sync.js` | 2026-05-22 | Fixes CORS issue. API key never touches client. |
+| P0 | **Updated client to use Notion proxy** — `useDatabase.tsx` `syncToNotion()` now calls `/api/notion-sync`. `Settings.tsx` test connection calls `/api/notion-test`. Removed API key/DB ID inputs from Settings. | `useDatabase.tsx`, `useSync.tsx`, `Settings.tsx` | 2026-05-22 | Client no longer stores or sends Notion credentials. |
 
 ---
 
@@ -38,9 +43,7 @@
 
 ### 🔴 Critical (Blockers — fix before production)
 
-| # | Issue | File(s) | Plan |
-|---|-------|---------|------|
-| C3-proper | **Notion API key still on client** — `sessionStorage` is an interim fix. The API key should never touch the client. | `useSync.tsx`, new `api/notion-sync.ts` | Create Vercel serverless function `/api/notion-sync` that holds the key in env vars. Client sends entries to this endpoint. Server forwards to Notion API. |
+*All critical issues resolved.*
 
 ### 🟡 High Priority (Fix before adding features)
 
@@ -98,9 +101,9 @@
 - `syncToNotion` makes direct `fetch()` calls to Notion API from the client.
 
 ### Notion Sync Security
-- **Current**: API key stored in `localStorage`, client calls Notion API directly.
-- **Interim fix**: Use `sessionStorage` (key cleared on session end).
-- **Proper fix**: Vercel serverless function proxy. The client sends entries to `/api/notion-sync`, the server holds the API key in env vars and forwards to Notion. This keeps the key completely off the client.
+- **Current**: API key and Database ID stored in Vercel environment variables (`NOTION_API_KEY`, `NOTION_DATABASE_ID`).
+- **Serverless functions**: `api/notion-test.js` tests connection, `api/notion-sync.js` syncs entries. Both read credentials from `process.env`.
+- **Client**: Never sees or stores the API key. Calls `/api/notion-test` and `/api/notion-sync` without credentials.
 
 ### Routing
 - Currently `BrowserRouter`. For a static SPA on Vercel, `HashRouter` is safer because refreshes on `/history` won't 404 (no server-side route handling needed).
@@ -119,7 +122,7 @@
 - **Build command**: `npm run build` (runs `tsc -b && vite build`)
 - **Dev command**: `npm run dev`
 - **Vercel**: PWA is enabled by default. Set `DISABLE_PWA=true` only if you need to disable it.
-- **Notion Integration**: Currently requires user to paste API key + Database ID in Settings page. These are stored in `sessionStorage` (cleared on session end). **Proper fix**: Vercel serverless function proxy to keep key server-side.
+- **Notion Integration**: Set `NOTION_API_KEY` and `NOTION_DATABASE_ID` as Vercel environment variables. The Settings page has a "Test Connection" button that verifies the server-side configuration.
 
 ---
 
