@@ -131,9 +131,12 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     try {
       const unsynced = getUnsyncedEntries()
       if (unsynced.length === 0) {
+        console.log('[sync] No unsynced entries — already up to date')
         setSyncStatus('synced')
         return
       }
+
+      console.log(`[sync] Syncing ${unsynced.length} unsynced entries to Notion...`)
 
       const res = await fetch('/api/notion-sync', {
         method: 'POST',
@@ -154,12 +157,18 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        console.error('Sync failed:', data.error || res.statusText)
+        console.error('[sync] Server responded with error:', res.status, data.error || res.statusText)
         setSyncStatus('error')
         return
       }
 
       const data = await res.json()
+      console.log(`[sync] Result: ${data.synced.length} synced, ${data.failed.length} failed`)
+
+      if (data.failed.length > 0) {
+        console.error('[sync] Failed entries:', data.failed)
+      }
+
       const database = getDatabase()
       const syncedIds: number[] = []
 
@@ -178,7 +187,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
       }
       refreshEntries()
     } catch (err) {
-      console.error('Sync error:', err)
+      console.error('[sync] Network or unexpected error:', err)
       setSyncStatus('error')
     }
   }, [refreshEntries])

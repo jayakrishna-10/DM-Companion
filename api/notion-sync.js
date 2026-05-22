@@ -12,20 +12,47 @@ export default async function handler(req, res) {
   const databaseId = process.env.NOTION_DATABASE_ID
 
   if (!apiKey || !databaseId) {
+    console.error('[notion-sync] Missing env vars:', { hasApiKey: !!apiKey, hasDatabaseId: !!databaseId })
     return res.status(500).json({ error: 'Server configuration missing: NOTION_API_KEY or NOTION_DATABASE_ID not set' })
   }
 
   const { entries } = req.body
 
   if (!Array.isArray(entries) || entries.length === 0) {
+    console.warn('[notion-sync] No entries provided in request body')
     return res.status(400).json({ error: 'No entries provided' })
   }
+
+  console.log(`[notion-sync] Syncing ${entries.length} entries to Notion database ${databaseId}`)
 
   const synced = []
   const failed = []
 
   for (const entry of entries) {
+    // Build properties object — omit empty select fields entirely
+    // (Notion API rejects null property values)
+    const properties = {
+      'Note': { title: [{ text: { content: entry.note } }] },
+      'Date': { date: { start: entry.date } },
+      'Note Type': { select: { name: entry.noteType } },
+    }
+
+    if (entry.object) {
+      properties['Object'] = { select: { name: entry.object } }
+    }
+    if (entry.objectGroup) {
+      properties['Object Group'] = { select: { name: entry.objectGroup } }
+    }
+    if (entry.objectType) {
+      properties['Object Type'] = { select: { name: entry.objectType } }
+    }
+    if (entry.source) {
+      properties['Source'] = { select: { name: entry.source } }
+    }
+
     try {
+      console.log(`[notion-sync] Creating page for entry #${entry.id}: "${entry.note.substring(0, 50)}..."`)
+
       const notionRes = await fetch('https://api.notion.com/v1/pages', {
         method: 'POST',
         headers: {
@@ -35,29 +62,27 @@ export default async function handler(req, res) {
         },
         body: JSON.stringify({
           parent: { database_id: databaseId },
-          properties: {
-            'Note': { title: [{ text: { content: entry.note } }] },
-            'Date': { date: { start: entry.date } },
-            'Note Type': { select: { name: entry.noteType } },
-            'Object': entry.object ? { select: { name: entry.object } } : null,
-            'Object Group': entry.objectGroup ? { select: { name: entry.objectGroup } } : null,
-            'Object Type': entry.objectType ? { select: { name: entry.objectType } } : null,
-            'Source': entry.source ? { select: { name: entry.source } } : null,
-          },
+          properties,
         }),
       })
 
       if (notionRes.ok) {
         const data = await notionRes.json()
         synced.push({ id: entry.id, notionPageId: data.id })
+        console.log(`[notion-sync] Entry #${entry.id} synced successfully (page: ${data.id})`)
       } else {
         const data = await notionRes.json()
-        failed.push({ id: entry.id, error: data.message || `HTTP ${notionRes.status}` })
+        const errorMsg = data.message || `HTTP ${notionRes.status}`
+        console.error(`[notion-sync] Entry #${entry.id} failed: ${errorMsg}`, JSON.stringify(data))
+        failed.push({ id: entry.id, error: errorMsg })
       }
     } catch (err) {
-      failed.push({ id: entry.id, error: err.message || 'Network error' })
+      const errorMsg = err.message || 'Network error'
+      console.error(`[notion-sync] Entry #${entry.id} exception:`, errorMsg)
+      failed.push({ id: entry.id, error: errorMsg })
     }
   }
 
+  console.log(`[notion-sync] Complete: ${synced.length} synced, ${failed.length} failed`)
   return res.status(200).json({ synced, failed })
 }
