@@ -20,20 +20,10 @@ export function useOnlineStatus() {
 
 export function useSync() {
   const { syncStatus, lastSyncTime, syncToNotion, refreshEntries } = useDatabase()
-  const [apiKey, setApiKey] = useState(() => sessionStorage.getItem('notion_api_key') || '')
-  const [databaseId, setDatabaseId] = useState(() => sessionStorage.getItem('notion_database_id') || '')
-
-  const saveSettings = useCallback((key: string, id: string) => {
-    setApiKey(key)
-    setDatabaseId(id)
-    sessionStorage.setItem('notion_api_key', key)
-    sessionStorage.setItem('notion_database_id', id)
-  }, [])
 
   const sync = useCallback(async () => {
-    if (!apiKey || !databaseId) return
-    await syncToNotion(apiKey, databaseId)
-  }, [apiKey, databaseId, syncToNotion])
+    await syncToNotion()
+  }, [syncToNotion])
 
-  return { syncStatus, lastSyncTime, apiKey, databaseId, saveSettings, sync, refreshEntries }
+  return { syncStatus, lastSyncTime, sync, refreshEntries }
 }

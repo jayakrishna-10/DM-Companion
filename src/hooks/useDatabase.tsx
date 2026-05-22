@@ -19,7 +19,7 @@ interface DatabaseContextType {
   importData: (rows: { note: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string }[]) => number
   clearData: () => void
   exportData: () => LogEntry[]
-  syncToNotion: (apiKey: string, databaseId: string) => Promise<void>
+  syncToNotion: () => Promise<void>
 }
 
 const DatabaseContext = createContext<DatabaseContextType | null>(null)
@@ -44,6 +44,10 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     }).then(() => {
       setIsReady(true)
       setSyncStatus(navigator.onLine ? 'synced' : 'offline')
+    }).catch((err) => {
+      console.error('Database initialization failed:', err)
+      setIsReady(true)
+      setSyncStatus('offline')
     })
   }, [])
 
@@ -122,48 +126,59 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     return exportAllEntries()
   }, [])
 
-  const syncToNotion = useCallback(async (apiKey: string, databaseId: string) => {
+  const syncToNotion = useCallback(async () => {
     setSyncStatus('syncing')
     try {
       const unsynced = getUnsyncedEntries()
+      if (unsynced.length === 0) {
+        setSyncStatus('synced')
+        return
+      }
+
+      const res = await fetch('/api/notion-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entries: unsynced.map(e => ({
+            id: e.id,
+            note: e.note,
+            date: e.date,
+            noteType: e.noteType,
+            object: e.object,
+            objectGroup: e.objectGroup,
+            objectType: e.objectType,
+            source: e.source,
+          })),
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        console.error('Sync failed:', data.error || res.statusText)
+        setSyncStatus('error')
+        return
+      }
+
+      const data = await res.json()
       const database = getDatabase()
       const syncedIds: number[] = []
-      for (const entry of unsynced) {
-        const res = await fetch('https://api.notion.com/v1/pages', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Notion-Version': '2022-06-28',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            parent: { database_id: databaseId },
-            properties: {
-              'Note': { title: [{ text: { content: entry.note } }] },
-              'Date': { date: { start: entry.date } },
-              'Note Type': { select: { name: entry.noteType } },
-              'Object': entry.object ? { select: { name: entry.object } } : null,
-              'Object Group': entry.objectGroup ? { select: { name: entry.objectGroup } } : null,
-              'Object Type': entry.objectType ? { select: { name: entry.objectType } } : null,
-              'Source': entry.source ? { select: { name: entry.source } } : null,
-            },
-          }),
-        })
-        if (res.ok) {
-          const data = await res.json()
-          syncedIds.push(entry.id)
-          database.run('UPDATE log_entries SET notion_page_id = ? WHERE id = ?', [data.id, entry.id])
-        }
+
+      for (const synced of data.synced) {
+        syncedIds.push(synced.id)
+        database.run('UPDATE log_entries SET notion_page_id = ? WHERE id = ?', [synced.notionPageId, synced.id])
       }
+
       if (syncedIds.length > 0) {
         markAsSynced(syncedIds)
       }
-      setSyncStatus(syncedIds.length === unsynced.length ? 'synced' : 'error')
+
+      setSyncStatus(data.failed.length === 0 ? 'synced' : 'error')
       if (syncedIds.length > 0) {
         setLastSyncTime(new Date().toLocaleTimeString())
       }
       refreshEntries()
-    } catch {
+    } catch (err) {
+      console.error('Sync error:', err)
       setSyncStatus('error')
     }
   }, [refreshEntries])

@@ -3,39 +3,24 @@ import Papa from 'papaparse'
 import { useDatabase } from '@/hooks/useDatabase'
 import { useSync } from '@/hooks/useSync'
 import { Button } from '@/components/ui/Button'
-import { RefreshCw, Download, Upload, Trash2, Database, Key, Link, CheckCircle2, AlertCircle } from 'lucide-react'
+import { RefreshCw, Download, Upload, Trash2, Database, CheckCircle2, AlertCircle } from 'lucide-react'
 import { toast } from '@/components/ui/Toaster'
 
 export function Settings() {
   const { exportData, clearData, importData } = useDatabase()
-  const { apiKey, databaseId, saveSettings, sync, syncStatus, lastSyncTime } = useSync()
-  const [localApiKey, setLocalApiKey] = useState(apiKey)
-  const [localDbId, setLocalDbId] = useState(databaseId)
+  const { sync, syncStatus, lastSyncTime } = useSync()
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
 
-  const handleSave = () => {
-    saveSettings(localApiKey, localDbId)
-    toast('Settings saved', 'success')
-  }
-
   const handleTestConnection = async () => {
-    if (!localApiKey || !localDbId) {
-      toast('Please enter API key and Database ID', 'error')
-      return
-    }
     setTesting(true)
     setTestResult(null)
     try {
-      const res = await fetch(`https://api.notion.com/v1/databases/${localDbId}`, {
-        headers: {
-          'Authorization': `Bearer ${localApiKey}`,
-          'Notion-Version': '2022-06-28',
-        },
-      })
-      setTestResult(res.ok ? 'success' : 'error')
-      toast(res.ok ? 'Connection successful' : 'Connection failed', res.ok ? 'success' : 'error')
+      const res = await fetch('/api/notion-test')
+      const data = await res.json()
+      setTestResult(data.success ? 'success' : 'error')
+      toast(data.success ? 'Connection successful' : (data.error || 'Connection failed'), data.success ? 'success' : 'error')
     } catch {
       setTestResult('error')
       toast('Connection failed', 'error')
@@ -44,10 +29,6 @@ export function Settings() {
   }
 
   const handleSync = async () => {
-    if (!localApiKey || !localDbId) {
-      toast('Configure Notion settings first', 'error')
-      return
-    }
     await sync()
     toast('Sync completed', 'success')
   }
@@ -132,34 +113,13 @@ export function Settings() {
         </div>
 
         <div className="space-y-3">
-          <div className="relative">
-            <Key size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-            <input
-              type="password"
-              value={localApiKey}
-              onChange={e => setLocalApiKey(e.target.value)}
-              placeholder="Notion API Key"
-              className="w-full h-10 pl-9 pr-3 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
-            />
-          </div>
-
-          <div className="relative">
-            <Link size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-            <input
-              type="text"
-              value={localDbId}
-              onChange={e => setLocalDbId(e.target.value)}
-              placeholder="Database ID"
-              className="w-full h-10 pl-9 pr-3 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
-            />
-          </div>
+          <p className="text-xs text-text-muted">
+            Notion API key and Database ID are configured server-side via environment variables.
+          </p>
 
           <div className="flex gap-2">
             <Button size="sm" variant="secondary" onClick={handleTestConnection} disabled={testing}>
               {testing ? 'Testing...' : 'Test Connection'}
-            </Button>
-            <Button size="sm" variant="primary" onClick={handleSave}>
-              Save Settings
             </Button>
           </div>
 
