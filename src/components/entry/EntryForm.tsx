@@ -6,7 +6,7 @@ import { Input, TextArea, Select } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { useDatabase } from '@/hooks/useDatabase'
 import { detectNoteType, detectObjects } from '@/utils/auto-tag'
-import { Search, Sparkles, X } from 'lucide-react'
+import { Search, Sparkles } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { toast } from '@/components/ui/Toaster'
 
