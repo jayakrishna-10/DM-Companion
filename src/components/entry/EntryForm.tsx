@@ -1,10 +1,12 @@
-import { useState } from 'react'
-import type { NoteType, LogEntryFormData } from '@/types'
+import { useState, useMemo } from 'react'
+import type { NoteType, LogEntryFormData, ObjectOption } from '@/types'
+import { NOTE_TYPE_COLORS } from '@/types'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Input, TextArea, Select } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { useDatabase } from '@/hooks/useDatabase'
-import { Search } from 'lucide-react'
+import { detectNoteType, detectObjects } from '@/utils/auto-tag'
+import { Search, Sparkles } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { toast } from '@/components/ui/Toaster'
 
@@ -33,6 +35,39 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
   const groupOptions = objectType ? (hierarchy.groups[objectType] || []).map(g => ({ value: g, label: g })) : []
   const objectOptions = objectGroup ? (hierarchy.objects[objectGroup] || []).map(o => ({ value: o.object, label: o.object })) : []
 
+  // Real-time auto-tag suggestions based on note text
+  const suggestions = useMemo(() => {
+    if (!note.trim() || note.length < 2) return { noteType: null as NoteType | null, objects: [] as ObjectOption[] }
+    const detectedType = detectNoteType(note)
+    const detectedObjects = detectObjects(note, hierarchy, 3)
+    return { noteType: detectedType, objects: detectedObjects }
+  }, [note, hierarchy])
+
+  // Whether the suggested noteType differs from the current one
+  const showNoteTypeSuggestion = suggestions.noteType && suggestions.noteType !== noteType
+
+  // Whether there are object suggestions not already selected
+  const objectSuggestions = suggestions.objects.filter(s => s.object !== object)
+
+  const handleObjectSelect = (obj: { object: string; objectGroup: string; objectType: string }) => {
+    setObject(obj.object)
+    setObjectGroup(obj.objectGroup)
+    setObjectType(obj.objectType)
+    setSearchQuery('')
+  }
+
+  const applyNoteTypeSuggestion = () => {
+    if (suggestions.noteType) {
+      setNoteType(suggestions.noteType)
+    }
+  }
+
+  const applyObjectSuggestion = (obj: ObjectOption) => {
+    setObject(obj.object)
+    setObjectGroup(obj.objectGroup)
+    setObjectType(obj.objectType)
+  }
+
   const searchResults = (() => {
     if (!searchQuery.trim()) return []
     const q = searchQuery.toLowerCase()
@@ -46,13 +81,6 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
     }
     return allObjects.slice(0, 8)
   })()
-
-  const handleObjectSelect = (obj: { object: string; objectGroup: string; objectType: string }) => {
-    setObject(obj.object)
-    setObjectGroup(obj.objectGroup)
-    setObjectType(obj.objectType)
-    setSearchQuery('')
-  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -87,6 +115,29 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
       <div className="space-y-1.5">
         <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Note Type</label>
         <SegmentedControl value={noteType} onChange={setNoteType} />
+        {/* Auto-detected note type suggestion */}
+        <AnimatePresence>
+          {showNoteTypeSuggestion && (
+            <motion.button
+              type="button"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              onClick={applyNoteTypeSuggestion}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-accent/10 border border-accent/20 text-xs hover:bg-accent/20 transition-colors w-full text-left"
+            >
+              <Sparkles size={12} className="text-accent shrink-0" />
+              <span className="text-text-muted">Detected:</span>
+              <span
+                className="font-semibold"
+                style={{ color: NOTE_TYPE_COLORS[suggestions.noteType!] }}
+              >
+                {suggestions.noteType}
+              </span>
+              <span className="text-text-muted ml-auto">tap to apply</span>
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
 
       <div className="space-y-1.5">
@@ -110,6 +161,32 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
             </button>
           )}
         </div>
+
+        {/* Auto-detected equipment suggestions */}
+        <AnimatePresence>
+          {objectSuggestions.length > 0 && !searchQuery && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="flex flex-wrap gap-1.5"
+            >
+              {objectSuggestions.map((obj) => (
+                <button
+                  key={obj.object}
+                  type="button"
+                  onClick={() => applyObjectSuggestion(obj)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-accent/10 border border-accent/20 text-xs hover:bg-accent/20 transition-colors"
+                >
+                  <Sparkles size={10} className="text-accent" />
+                  <span className="text-accent-light font-medium">{obj.object}</span>
+                  <span className="text-text-muted">{obj.objectGroup}</span>
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <AnimatePresence>
           {searchQuery && searchResults.length > 0 && (
             <motion.div

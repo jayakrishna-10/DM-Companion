@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useDatabase } from '@/hooks/useDatabase'
-import { parseMultiInput, autoTagEntries } from '@/utils/auto-tag'
+import { parseMultiInput, autoTagEntries, detectNoteType, detectObjects } from '@/utils/auto-tag'
 import type { LogEntryFormData, ObjectOption, ObjectHierarchy } from '@/types'
 import { NOTE_TYPES, NOTE_TYPE_COLORS } from '@/types'
 import { Button } from '@/components/ui/Button'
@@ -213,6 +213,17 @@ function EntryCard({ entry, onUpdate, onRemove, hierarchy }: EntryCardProps) {
     ? (hierarchy.objects[entry.objectGroup] || []).map(o => ({ value: o.object, label: o.object }))
     : []
 
+  // Real-time auto-tag suggestions when editing
+  const suggestions = useMemo(() => {
+    if (!localNote.trim() || localNote.length < 2) return { noteType: null as string | null, objects: [] as ObjectOption[] }
+    const detectedType = detectNoteType(localNote)
+    const detectedObjects = detectObjects(localNote, hierarchy, 3)
+    return { noteType: detectedType, objects: detectedObjects }
+  }, [localNote, hierarchy])
+
+  const showNoteTypeSuggestion = suggestions.noteType && suggestions.noteType !== entry.noteType
+  const objectSuggestions = suggestions.objects.filter(s => s.object !== entry.object)
+
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return []
     const q = searchQuery.toLowerCase()
@@ -230,6 +241,21 @@ function EntryCard({ entry, onUpdate, onRemove, hierarchy }: EntryCardProps) {
   const handleObjectSelect = (obj: ObjectOption) => {
     onUpdate({ object: obj.object, objectGroup: obj.objectGroup, objectType: obj.objectType })
     setSearchQuery('')
+  }
+
+  const handleNoteChange = (newNote: string) => {
+    setLocalNote(newNote)
+    onUpdate({ note: newNote })
+  }
+
+  const applyNoteTypeSuggestion = () => {
+    if (suggestions.noteType) {
+      onUpdate({ noteType: suggestions.noteType as any })
+    }
+  }
+
+  const applyObjectSuggestion = (obj: ObjectOption) => {
+    onUpdate({ object: obj.object, objectGroup: obj.objectGroup, objectType: obj.objectType })
   }
 
   const noteTypeColor = NOTE_TYPE_COLORS[entry.noteType]
@@ -308,6 +334,29 @@ function EntryCard({ entry, onUpdate, onRemove, hierarchy }: EntryCardProps) {
                     </button>
                   ))}
                 </div>
+                {/* Auto-detected note type suggestion */}
+                <AnimatePresence>
+                  {showNoteTypeSuggestion && (
+                    <motion.button
+                      type="button"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      onClick={applyNoteTypeSuggestion}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-accent/10 border border-accent/20 text-xs hover:bg-accent/20 transition-colors w-full text-left"
+                    >
+                      <Sparkles size={12} className="text-accent shrink-0" />
+                      <span className="text-text-muted">Detected:</span>
+                      <span
+                        className="font-semibold"
+                        style={{ color: NOTE_TYPE_COLORS[suggestions.noteType as keyof typeof NOTE_TYPE_COLORS] }}
+                      >
+                        {suggestions.noteType}
+                      </span>
+                      <span className="text-text-muted ml-auto">tap to apply</span>
+                    </motion.button>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* Note */}
@@ -315,13 +364,13 @@ function EntryCard({ entry, onUpdate, onRemove, hierarchy }: EntryCardProps) {
                 <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Note</label>
                 <textarea
                   value={localNote}
-                  onChange={e => { setLocalNote(e.target.value); onUpdate({ note: e.target.value }) }}
+                  onChange={e => handleNoteChange(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-border-subtle text-text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 resize-none min-h-[60px]"
                   rows={2}
                 />
               </div>
 
-              {/* Equipment search */}
+              {/* Equipment search + suggestions */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Equipment</label>
                 <div className="relative">
@@ -342,6 +391,32 @@ function EntryCard({ entry, onUpdate, onRemove, hierarchy }: EntryCardProps) {
                     </button>
                   )}
                 </div>
+
+                {/* Auto-detected equipment suggestions */}
+                <AnimatePresence>
+                  {objectSuggestions.length > 0 && !searchQuery && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="flex flex-wrap gap-1.5"
+                    >
+                      {objectSuggestions.map((obj) => (
+                        <button
+                          key={obj.object}
+                          type="button"
+                          onClick={() => applyObjectSuggestion(obj)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-accent/10 border border-accent/20 text-xs hover:bg-accent/20 transition-colors"
+                        >
+                          <Sparkles size={10} className="text-accent" />
+                          <span className="text-accent-light font-medium">{obj.object}</span>
+                          <span className="text-text-muted">{obj.objectGroup}</span>
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {searchQuery && searchResults.length > 0 && (
                   <div className="rounded-lg border border-border-subtle bg-surface overflow-hidden">
                     {searchResults.map((obj, i) => (
