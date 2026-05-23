@@ -23,8 +23,6 @@ export function parseMultiInput(raw: string): string[] {
     .map(line => line.replace(/^[\s]*[•\-\*]\s*/, ''))
     .map(line => line.replace(/^[\s]*\d+[\).\s]\s*/, ''))
     .map(line => line.trim())
-    // Remove lines that are just headers/labels (e.g. "21-05-26 Day Activity Report")
-    // We keep these as they may contain useful context, but filter empty lines
     .filter(line => line.length > 0)
 
   return lines
@@ -72,22 +70,18 @@ export function detectNoteType(note: string): NoteType {
 }
 
 /**
- * Find the best matching object from the hierarchy based on note text.
- * Returns the ObjectOption if a match is found, or null.
- * Prioritizes longer matches (more specific equipment names).
+ * Find all matching objects from the hierarchy based on note text.
+ * Returns up to `maxResults` matches, sorted by specificity (longest match first).
+ * Skips very short names (≤2 chars) to avoid false positives.
  */
-export function detectObject(note: string, hierarchy: ObjectHierarchy): ObjectOption | null {
+export function detectObjects(note: string, hierarchy: ObjectHierarchy, maxResults: number = 2): ObjectOption[] {
   const lower = note.toLowerCase()
-
-  // Collect all objects with their match length for priority sorting
   const matches: (ObjectOption & { matchLength: number })[] = []
 
   for (const groupKey of Object.keys(hierarchy.objects)) {
     for (const obj of hierarchy.objects[groupKey]) {
-      // Check if the object name appears in the note
-      // Use word boundary matching for short names to avoid false positives
       const objectName = obj.object.toLowerCase()
-      if (objectName.length <= 2) continue // Skip very short names like "P2" that could be false positives
+      if (objectName.length <= 2) continue
 
       if (lower.includes(objectName)) {
         matches.push({ ...obj, matchLength: objectName.length })
@@ -95,13 +89,32 @@ export function detectObject(note: string, hierarchy: ObjectHierarchy): ObjectOp
     }
   }
 
-  if (matches.length === 0) return null
-
   // Sort by match length descending (prefer more specific/longer matches)
-  // e.g., "R5-C" should match over "R5" if both exist
   matches.sort((a, b) => b.matchLength - a.matchLength)
 
-  return { object: matches[0].object, objectGroup: matches[0].objectGroup, objectType: matches[0].objectType }
+  // Deduplicate: if a longer match already covers a shorter one in the same group, skip the shorter
+  const seen = new Set<string>()
+  const deduped: ObjectOption[] = []
+  for (const m of matches) {
+    const key = `${m.object}|${m.objectGroup}`
+    if (!seen.has(key)) {
+      seen.add(key)
+      deduped.push({ object: m.object, objectGroup: m.objectGroup, objectType: m.objectType })
+      if (deduped.length >= maxResults) break
+    }
+  }
+
+  return deduped
+}
+
+/**
+ * Find the best matching object from the hierarchy based on note text.
+ * Returns the ObjectOption if a match is found, or null.
+ * Prioritizes longer matches (more specific equipment names).
+ */
+export function detectObject(note: string, hierarchy: ObjectHierarchy): ObjectOption | null {
+  const results = detectObjects(note, hierarchy, 1)
+  return results.length > 0 ? results[0] : null
 }
 
 /**
