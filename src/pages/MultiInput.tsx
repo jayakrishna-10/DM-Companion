@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useDatabase } from '@/hooks/useDatabase'
 import { parseMultiInput, autoTagEntries } from '@/utils/auto-tag'
-import type { NoteType, LogEntryFormData, ObjectOption, ObjectHierarchy } from '@/types'
+import type { LogEntryFormData, ObjectOption, ObjectHierarchy } from '@/types'
 import { NOTE_TYPES, NOTE_TYPE_COLORS } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
