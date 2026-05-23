@@ -217,7 +217,7 @@ function EntryCard({ entry, onUpdate, onRemove, hierarchy }: EntryCardProps) {
   const suggestions = useMemo(() => {
     if (!localNote.trim() || localNote.length < 2) return { noteType: null as string | null, objects: [] as ObjectOption[] }
     const detectedType = detectNoteType(localNote)
-    const detectedObjects = detectObjects(localNote, hierarchy, 2)
+    const detectedObjects = detectObjects(localNote, hierarchy, 3)
     return { noteType: detectedType, objects: detectedObjects }
   }, [localNote, hierarchy])
 

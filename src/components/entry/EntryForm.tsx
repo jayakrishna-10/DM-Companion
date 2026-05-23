@@ -39,7 +39,7 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
   const suggestions = useMemo(() => {
     if (!note.trim() || note.length < 2) return { noteType: null as NoteType | null, objects: [] as ObjectOption[] }
     const detectedType = detectNoteType(note)
-    const detectedObjects = detectObjects(note, hierarchy, 2)
+    const detectedObjects = detectObjects(note, hierarchy, 3)
     return { noteType: detectedType, objects: detectedObjects }
   }, [note, hierarchy])
 
