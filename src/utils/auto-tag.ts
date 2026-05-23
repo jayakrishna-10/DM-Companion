@@ -19,7 +19,6 @@ export function parseMultiInput(raw: string): string[] {
   const lines = raw
     .split(/\n/)
     .map(line => line.trim())
-    // Strip leading bullets, numbers, dashes, dots
     .map(line => line.replace(/^[\s]*[•\-\*]\s*/, ''))
     .map(line => line.replace(/^[\s]*\d+[\).\s]\s*/, ''))
     .map(line => line.trim())
@@ -70,20 +69,93 @@ export function detectNoteType(note: string): NoteType {
 }
 
 /**
+ * Generate search patterns for an object name.
+ * For "R5-F" this produces: ["r5-f", "r5f", "5f", "r5 f", "5 f"]
+ * For "P2-4" this produces: ["p2-4", "p24", "24", "p2 4", "2 4"]
+ * For "HCl Bulk Storage Tank" this produces: ["hcl bulk storage tank", "hclbulkstoragetank"]
+ *
+ * The idea: users write equipment names in many formats.
+ * "R5F" should still match "R5-F". "5F" should match too.
+ */
+function generateSearchPatterns(name: string): string[] {
+  const lower = name.toLowerCase()
+  const patterns = new Set<string>()
+
+  // 1. Exact name as-is
+  patterns.add(lower)
+
+  // 2. Remove all hyphens: "R5-F" → "r5f"
+  const noHyphens = lower.replace(/-/g, '')
+  patterns.add(noHyphens)
+
+  // 3. Replace hyphens with spaces: "R5-F" → "r5 f"
+  const hyphensToSpaces = lower.replace(/-/g, ' ')
+  patterns.add(hyphensToSpaces)
+
+  // 4. For hyphenated names like "R5-F", extract suffix patterns
+  //    "R5-F" → "5f", "P2-4" → "24"
+  const hyphenMatch = lower.match(/^[a-z]+-(.+)$/)
+  if (hyphenMatch) {
+    // Remove the leading letter(s) and hyphen, keep the rest: "R5-F" → "5f"
+    const suffixWithNumber = lower.replace(/^[a-z]+/, '').replace(/-/g, '')
+    patterns.add(suffixWithNumber)
+
+    // Add spaced version: "5 f"
+    const suffixSpaced = suffixWithNumber.replace(/(\d)([a-z])/g, '$1 $2')
+    patterns.add(suffixSpaced)
+  }
+
+  // 5. For names with spaces, also try without spaces
+  if (lower.includes(' ')) {
+    patterns.add(lower.replace(/\s+/g, ''))
+  }
+
+  // Filter out very short patterns (≤1 char) that would cause false positives
+  return [...patterns].filter(p => p.length > 1)
+}
+
+/**
+ * Check if any search pattern for an object name appears in the note text.
+ * Uses normalized matching: the note is also checked in hyphen-stripped form.
+ */
+function matchesNote(objectName: string, noteLower: string): boolean {
+  const patterns = generateSearchPatterns(objectName)
+
+  // Normalize the note text: create versions without hyphens/spaces
+  const noteNoHyphens = noteLower.replace(/-/g, '')
+  const noteNoSpaces = noteLower.replace(/\s+/g, '')
+
+  for (const pattern of patterns) {
+    if (pattern.length <= 1) continue
+
+    // Check pattern against: original note
+    if (noteLower.includes(pattern)) return true
+    // Check hyphen-free patterns against hyphen-free note
+    if (!pattern.includes('-') && noteNoHyphens.includes(pattern)) return true
+    // Check space-free patterns against space-free note
+    if (!pattern.includes(' ') && noteNoSpaces.includes(pattern)) return true
+  }
+
+  return false
+}
+
+/**
  * Find all matching objects from the hierarchy based on note text.
+ * Uses fuzzy matching: "R5F" matches "R5-F", "5F" matches "R5-F", etc.
  * Returns up to `maxResults` matches, sorted by specificity (longest match first).
  * Skips very short names (≤2 chars) to avoid false positives.
  */
-export function detectObjects(note: string, hierarchy: ObjectHierarchy, maxResults: number = 2): ObjectOption[] {
+export function detectObjects(note: string, hierarchy: ObjectHierarchy, maxResults: number = 3): ObjectOption[] {
   const lower = note.toLowerCase()
   const matches: (ObjectOption & { matchLength: number })[] = []
 
   for (const groupKey of Object.keys(hierarchy.objects)) {
     for (const obj of hierarchy.objects[groupKey]) {
-      const objectName = obj.object.toLowerCase()
+      const objectName = obj.object
       if (objectName.length <= 2) continue
 
-      if (lower.includes(objectName)) {
+      if (matchesNote(objectName, lower)) {
+        // Use original name length as priority — longer names are more specific
         matches.push({ ...obj, matchLength: objectName.length })
       }
     }
@@ -92,7 +164,7 @@ export function detectObjects(note: string, hierarchy: ObjectHierarchy, maxResul
   // Sort by match length descending (prefer more specific/longer matches)
   matches.sort((a, b) => b.matchLength - a.matchLength)
 
-  // Deduplicate: if a longer match already covers a shorter one in the same group, skip the shorter
+  // Deduplicate by object key
   const seen = new Set<string>()
   const deduped: ObjectOption[] = []
   for (const m of matches) {
