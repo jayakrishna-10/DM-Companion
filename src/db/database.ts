@@ -385,6 +385,53 @@ export function getExistingNotionPageIds(): Set<string> {
   return new Set(result[0].values.map((r: unknown[]) => r[0] as string))
 }
 
+/**
+ * Check if an entry with the same content already exists locally.
+ * Used to prevent duplicates when pulling from Notion.
+ * Matches on: note, date, noteType, object, objectGroup, objectType
+ */
+export function isDuplicateEntry(entry: {
+  note: string
+  date: string
+  noteType: string
+  object: string
+  objectGroup: string
+  objectType: string
+}): boolean {
+  const d = getDatabase()
+  const result = d.exec(
+    "SELECT id FROM log_entries WHERE note = ? AND date = ? AND note_type = ? AND object = ? AND object_group = ? AND object_type = ? LIMIT 1",
+    [entry.note, entry.date, entry.noteType, entry.object || '', entry.objectGroup || '', entry.objectType || '']
+  )
+  return result.length > 0 && result[0].values.length > 0
+}
+
+/**
+ * Delete local entries whose notionPageId is NOT in the provided set of remote IDs.
+ * This handles Notion-side deletions: if an entry was deleted from Notion,
+ * we remove the corresponding local entry.
+ * Returns the number of entries deleted.
+ */
+export function deleteNotionRemovedEntries(remotePageIds: Set<string>): number {
+  const d = getDatabase()
+  // Find all local entries that have a notionPageId but it's not in the remote set
+  const result = d.exec("SELECT id, notion_page_id FROM log_entries WHERE notion_page_id IS NOT NULL AND notion_page_id != ''")
+  if (result.length === 0) return 0
+
+  let deleted = 0
+  for (const row of result[0].values) {
+    const id = row[0] as number
+    const pageId = row[1] as string
+    if (!remotePageIds.has(pageId)) {
+      d.run('DELETE FROM log_entries WHERE id = ?', [id])
+      deleted++
+    }
+  }
+
+  if (deleted > 0) scheduleSave()
+  return deleted
+}
+
 export function insertEntryFromNotion(entry: {
   note: string
   date: string
