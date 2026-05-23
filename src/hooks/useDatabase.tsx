@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
-import { initDatabase, getDatabase, insertEntry, insertEntryFromNotion, updateEntry, deleteEntry, getEntriesByDate, getEntryCountsByType, searchEntries, getEntries, importFromCSV, clearAllData, exportAllEntries, getObjectHierarchy, getUnsyncedEntries, getExistingNotionPageIds, markAsSynced } from '@/db/database'
+import { initDatabase, getDatabase, insertEntry, insertEntryFromNotion, updateEntry, deleteEntry, getEntriesByDate, getEntryCountsByType, searchEntries, getEntries, importFromCSV, clearAllData, exportAllEntries, getObjectHierarchy, getUnsyncedEntries, getExistingNotionPageIds, markAsSynced, isDuplicateEntry, deleteNotionRemovedEntries } from '@/db/database'
 import { seedDatabase } from '@/db/seed'
 import type { LogEntry, LogEntryFormData, NoteType, ObjectHierarchy, SyncStatus } from '@/types'
 
@@ -112,7 +112,15 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     return exportAllEntries()
   }, [])
 
+  let syncInProgress = false
+
   const syncToNotion = useCallback(async () => {
+    // Prevent concurrent syncs
+    if (syncInProgress) {
+      console.log('[sync] Sync already in progress, skipping')
+      return
+    }
+    syncInProgress = true
     setSyncStatus('syncing')
     try {
       // --- PULL from Notion first ---
@@ -126,25 +134,54 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
           const existingPageIds = getExistingNotionPageIds()
           console.log('[sync] Existing page IDs in local DB:', existingPageIds.size)
           const allEntries = (pullData.entries as { note: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string; notionPageId: string }[])
-          const newEntries = allEntries.filter((e) => !existingPageIds.has(e.notionPageId))
-          const skippedNoNote = allEntries.length - pullData.entries.filter((e: { note: string }) => e.note).length
-          if (skippedNoNote > 0) {
-            console.warn(`[sync] ${skippedNoNote} entries from Notion had empty note/title and were excluded by the API`)
+
+          // Build set of all remote page IDs for deletion detection
+          const remotePageIds = new Set(allEntries.map(e => e.notionPageId))
+
+          // --- Delete local entries that were removed from Notion ---
+          const deletedCount = deleteNotionRemovedEntries(remotePageIds)
+          if (deletedCount > 0) {
+            console.log(`[sync] Deleted ${deletedCount} local entries that were removed from Notion`)
           }
 
-            if (newEntries.length > 0) {
-              console.log(`[sync] Inserting ${newEntries.length} new entries from Notion`)
-              for (const entry of newEntries) {
-                insertEntryFromNotion({
-                  note: entry.note,
-                  date: entry.date,
-                  noteType: entry.noteType as NoteType,
+          // --- Insert new entries (deduplicated by pageId AND content) ---
+          const newEntries = allEntries.filter((e) => !existingPageIds.has(e.notionPageId))
+          let inserted = 0
+          let duplicatesSkipped = 0
+
+          if (newEntries.length > 0) {
+            for (const entry of newEntries) {
+              // Content-based dedup: skip if an identical entry already exists locally
+              if (isDuplicateEntry({
+                note: entry.note,
+                date: entry.date,
+                noteType: entry.noteType,
+                object: entry.object,
+                objectGroup: entry.objectGroup,
+                objectType: entry.objectType,
+              })) {
+                console.log(`[sync] Skipping duplicate from Notion: "${entry.note.substring(0, 40)}..."`)
+                duplicatesSkipped++
+                continue
+              }
+
+              insertEntryFromNotion({
+                note: entry.note,
+                date: entry.date,
+                noteType: entry.noteType as NoteType,
                 object: entry.object,
                 objectGroup: entry.objectGroup,
                 objectType: entry.objectType,
                 source: entry.source,
                 notionPageId: entry.notionPageId,
               })
+              inserted++
+            }
+            if (inserted > 0) {
+              console.log(`[sync] Inserted ${inserted} new entries from Notion`)
+            }
+            if (duplicatesSkipped > 0) {
+              console.log(`[sync] Skipped ${duplicatesSkipped} duplicate entries from Notion`)
             }
             refreshEntries()
           } else {
@@ -220,6 +257,8 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error('[sync] Network or unexpected error:', err)
       setSyncStatus('error')
+    } finally {
+      syncInProgress = false
     }
   }, [refreshEntries])
 
