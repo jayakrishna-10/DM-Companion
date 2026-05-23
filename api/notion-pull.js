@@ -49,25 +49,36 @@ export default async function handler(req, res) {
     const entries = allPages.map(page => {
       const props = page.properties
 
-      // Extract title
-      const noteProp = props['Note'] || props['note']
+      // Auto-detect title property: find the property with type 'title'
+      // Falls back to 'Note'/'note' for backward compatibility
+      let noteProp = null
+      for (const [key, value] of Object.entries(props)) {
+        if (value.type === 'title') {
+          noteProp = value
+          break
+        }
+      }
+      // Fallback to explicit names if no title-type property found
+      if (!noteProp) {
+        noteProp = props['Note'] || props['note'] || props['Name'] || props['name'] || props['Title'] || props['title']
+      }
       const note = noteProp?.title?.map(t => t.plain_text).join('') || ''
 
-      // Extract date
+      // Extract date — try multiple property names
       const dateProp = props['Date'] || props['date']
       const date = dateProp?.date?.start || ''
 
-      // Extract select fields
-      const noteTypeProp = props['Note Type'] || props['note_type'] || props['Note type']
+      // Extract select fields — try multiple property name variants
+      const noteTypeProp = props['Note Type'] || props['note_type'] || props['Note type'] || props['noteType']
       const noteType = noteTypeProp?.select?.name || 'Activity'
 
       const objectProp = props['Object'] || props['object']
       const objectValue = objectProp?.select?.name || ''
 
-      const objectGroupProp = props['Object Group'] || props['object_group'] || props['Object group']
+      const objectGroupProp = props['Object Group'] || props['object_group'] || props['Object group'] || props['objectGroup']
       const objectGroup = objectGroupProp?.select?.name || ''
 
-      const objectTypeProp = props['Object Type'] || props['object_type'] || props['Object type']
+      const objectTypeProp = props['Object Type'] || props['object_type'] || props['Object type'] || props['objectType']
       const objectType = objectTypeProp?.select?.name || ''
 
       // Source is multi_select
@@ -84,9 +95,9 @@ export default async function handler(req, res) {
         source,
         notionPageId: page.id,
       }
-    }).filter(e => e.note) // Skip pages without a title
+    }).filter(e => e.note || e.date) // Keep entries that have at least a note or a date
 
-    console.log(`[notion-pull] Returning ${entries.length} valid entries`)
+    console.log(`[notion-pull] Returning ${entries.length} valid entries (filtered from ${allPages.length} total)`)
     return res.status(200).json({ entries })
   } catch (err) {
     console.error('[notion-pull] Exception:', err.message)

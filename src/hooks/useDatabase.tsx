@@ -117,15 +117,23 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     try {
       // --- PULL from Notion first ---
       console.log('[sync] Pulling entries from Notion...')
+      let pullFailed = false
       try {
         const pullRes = await fetch('/api/notion-pull')
         if (pullRes.ok) {
           const pullData = await pullRes.json()
+          console.log('[sync] Pull response:', pullData.entries?.length ?? 0, 'entries from Notion')
           const existingPageIds = getExistingNotionPageIds()
-const newEntries = (pullData.entries as { note: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string; notionPageId: string }[]).filter((e) => !existingPageIds.has(e.notionPageId))
+          console.log('[sync] Existing page IDs in local DB:', existingPageIds.size)
+          const allEntries = (pullData.entries as { note: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string; notionPageId: string }[])
+          const newEntries = allEntries.filter((e) => !existingPageIds.has(e.notionPageId))
+          const skippedNoNote = allEntries.length - pullData.entries.filter((e: { note: string }) => e.note).length
+          if (skippedNoNote > 0) {
+            console.warn(`[sync] ${skippedNoNote} entries from Notion had empty note/title and were excluded by the API`)
+          }
 
             if (newEntries.length > 0) {
-              console.log(`[sync] Pulling ${newEntries.length} new entries from Notion`)
+              console.log(`[sync] Inserting ${newEntries.length} new entries from Notion`)
               for (const entry of newEntries) {
                 insertEntryFromNotion({
                   note: entry.note,
@@ -140,21 +148,23 @@ const newEntries = (pullData.entries as { note: string; date: string; noteType: 
             }
             refreshEntries()
           } else {
-            console.log('[sync] No new entries from Notion')
+            console.log('[sync] No new entries from Notion (all', allEntries.length, 'already exist locally)')
           }
         } else {
           const errData = await pullRes.json().catch(() => ({}))
-          console.error('[sync] Pull from Notion failed:', errData.error || pullRes.statusText)
+          console.error('[sync] Pull from Notion failed:', pullRes.status, errData.error || pullRes.statusText)
+          pullFailed = true
         }
       } catch (pullErr) {
         console.error('[sync] Pull from Notion error:', pullErr)
+        pullFailed = true
       }
 
       // --- PUSH unsynced local entries to Notion ---
       const unsynced = getUnsyncedEntries()
       if (unsynced.length === 0) {
         console.log('[sync] No unsynced entries to push')
-        setSyncStatus('synced')
+        setSyncStatus(pullFailed ? 'error' : 'synced')
         setLastSyncTime(new Date().toLocaleTimeString())
         return
       }
@@ -204,7 +214,7 @@ const newEntries = (pullData.entries as { note: string; date: string; noteType: 
         markAsSynced(syncedIds)
       }
 
-      setSyncStatus(data.failed.length === 0 ? 'synced' : 'error')
+      setSyncStatus(data.failed.length === 0 && !pullFailed ? 'synced' : 'error')
       setLastSyncTime(new Date().toLocaleTimeString())
       refreshEntries()
     } catch (err) {
