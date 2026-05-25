@@ -5,6 +5,8 @@ import { Home } from '@/pages/Home'
 import { NewEntry } from '@/pages/NewEntry'
 import { MultiInput } from '@/pages/MultiInput'
 import { History } from '@/pages/History'
+import { Issues } from '@/pages/Issues'
+import { Equipment } from '@/pages/Equipment'
 import { Settings } from '@/pages/Settings'
 import { Toaster } from '@/components/ui/Toaster'
 
@@ -19,6 +21,8 @@ export default function App() {
             <Route path="/new" element={<NewEntry />} />
             <Route path="/multi" element={<MultiInput />} />
             <Route path="/history" element={<History />} />
+            <Route path="/issues" element={<Issues />} />
+            <Route path="/equipment" element={<Equipment />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
         </Routes>

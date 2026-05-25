@@ -1,6 +1,7 @@
 import type { LogEntry } from '@/types'
 import { Badge } from '@/components/ui/Badge'
 import { motion } from 'framer-motion'
+import { useNavigate } from 'react-router'
 
 interface EntryRowProps {
   entry: LogEntry
@@ -9,6 +10,14 @@ interface EntryRowProps {
 
 export function EntryRow({ entry, onClick }: EntryRowProps) {
   const truncatedNote = entry.note.length > 55 ? entry.note.slice(0, 55) + '...' : entry.note
+  const navigate = useNavigate()
+
+  const handleObjectClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (entry.object) {
+      navigate(`/equipment?object=${encodeURIComponent(entry.object)}`)
+    }
+  }
 
   return (
     <motion.button
@@ -31,7 +40,12 @@ export function EntryRow({ entry, onClick }: EntryRowProps) {
         {entry.object && (
           <>
             <span>·</span>
-            <span className="text-text-secondary font-medium">{entry.object}</span>
+            <span
+              className="text-text-secondary font-medium hover:text-accent-light cursor-pointer transition-colors"
+              onClick={handleObjectClick}
+            >
+              {entry.object}
+            </span>
           </>
         )}
       </div>

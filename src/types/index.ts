@@ -73,3 +73,8 @@ export interface ObjectHierarchy {
   groups: Record<string, string[]>
   objects: Record<string, ObjectOption[]>
 }
+
+export interface OpenIssue {
+  entry: LogEntry
+  resolved: boolean
+}
