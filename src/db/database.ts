@@ -465,3 +465,36 @@ export function exportAllEntries(): LogEntry[] {
   if (result.length === 0) return []
   return result[0].values.map(rowToEntry)
 }
+
+export interface OpenIssue {
+  entry: LogEntry
+  resolved: boolean
+}
+
+export function getOpenIssues(): OpenIssue[] {
+  const d = getDatabase()
+
+  // Get all Complaints and Abnormalities
+  const issues = d.exec(
+    "SELECT * FROM log_entries WHERE note_type IN ('Complaints', 'Abnormality') ORDER BY date DESC, id DESC"
+  )
+  if (issues.length === 0) return []
+
+  const issueEntries = issues[0].values.map(rowToEntry)
+
+  // Get all Resolved Complaints
+  const resolved = d.exec(
+    "SELECT object FROM log_entries WHERE note_type = 'Resolved Complaint' AND object != ''"
+  )
+  const resolvedObjects = new Set<string>()
+  if (resolved.length > 0) {
+    for (const row of resolved[0].values) {
+      resolvedObjects.add((row[0] as string).toLowerCase().trim())
+    }
+  }
+
+  return issueEntries.map(entry => ({
+    entry,
+    resolved: entry.object ? resolvedObjects.has(entry.object.toLowerCase().trim()) : false,
+  }))
+}

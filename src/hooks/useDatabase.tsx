@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
-import { initDatabase, getDatabase, insertEntry, insertEntryFromNotion, updateEntry, deleteEntry, getEntriesByDate, getEntryCountsByType, searchEntries, getEntries, importFromCSV, clearAllData, exportAllEntries, getObjectHierarchy, getUnsyncedEntries, getExistingNotionPageIds, markAsSynced, isDuplicateEntry, deleteNotionRemovedEntries } from '@/db/database'
+import { initDatabase, getDatabase, insertEntry, insertEntryFromNotion, updateEntry, deleteEntry, getEntriesByDate, getEntryCountsByType, searchEntries, getEntries, importFromCSV, clearAllData, exportAllEntries, getObjectHierarchy, getUnsyncedEntries, getExistingNotionPageIds, markAsSynced, isDuplicateEntry, deleteNotionRemovedEntries, getOpenIssues } from '@/db/database'
 import { seedDatabase } from '@/db/seed'
-import type { LogEntry, LogEntryFormData, NoteType, ObjectHierarchy, SyncStatus } from '@/types'
+import type { LogEntry, LogEntryFormData, NoteType, ObjectHierarchy, OpenIssue, SyncStatus } from '@/types'
 
 interface DatabaseContextType {
   isReady: boolean
@@ -16,6 +16,7 @@ interface DatabaseContextType {
   search: (query: string) => LogEntry[]
   filterEntries: (options?: { noteType?: NoteType; objectType?: string; search?: string }) => LogEntry[]
   getHierarchy: () => ObjectHierarchy
+  getOpenIssues: () => OpenIssue[]
   importData: (rows: { note: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string }[]) => number
   clearData: () => void
   exportData: () => LogEntry[]
@@ -95,6 +96,10 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
 
   const getHierarchyFn = useCallback((): ObjectHierarchy => {
     return getObjectHierarchy()
+  }, [])
+
+  const getOpenIssuesFn = useCallback((): OpenIssue[] => {
+    return getOpenIssues()
   }, [])
 
   const importData = useCallback((rows: { note: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string }[]) => {
@@ -294,7 +299,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     <DatabaseContext.Provider value={{
       isReady, entries, counts, syncStatus, lastSyncTime,
       refreshEntries, addEntry, editEntry, removeEntry, search, filterEntries,
-      getHierarchy: getHierarchyFn, importData, clearData: clearDataFn, exportData, syncToNotion,
+      getHierarchy: getHierarchyFn, getOpenIssues: getOpenIssuesFn, importData, clearData: clearDataFn, exportData, syncToNotion,
     }}>
       {children}
     </DatabaseContext.Provider>

@@ -103,6 +103,7 @@ export function History() {
           setSheetOpen(false)
           toast('Entry deleted')
         }}
+        onDuplicate={(entry) => { setSheetOpen(false); navigate(`/new?duplicate=${entry.id}`) }}
       />
     </div>
   )
