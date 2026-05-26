@@ -65,6 +65,23 @@ function createTables(database: Database) {
     )
   `)
 
+  database.run(`
+    CREATE TABLE IF NOT EXISTS sync_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      timestamp TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+      direction TEXT NOT NULL,
+      status TEXT NOT NULL,
+      pulled INTEGER DEFAULT 0,
+      pushed INTEGER DEFAULT 0,
+      failed INTEGER DEFAULT 0,
+      duplicates_skipped INTEGER DEFAULT 0,
+      deleted INTEGER DEFAULT 0,
+      tags_upserted INTEGER DEFAULT 0,
+      duration_ms INTEGER DEFAULT 0,
+      error TEXT DEFAULT ''
+    )
+  `)
+
   database.run(`CREATE INDEX IF NOT EXISTS idx_entries_date ON log_entries(date DESC)`)
   database.run(`CREATE INDEX IF NOT EXISTS idx_entries_note_type ON log_entries(note_type)`)
   database.run(`CREATE INDEX IF NOT EXISTS idx_entries_object ON log_entries(object)`)
@@ -651,4 +668,102 @@ export function getOpenIssues(): OpenIssue[] {
     entry,
     resolved: entry.object ? resolvedObjects.has(entry.object.toLowerCase().trim()) : false,
   }))
+}
+
+// ─── Sync Logs ──────────────────────────────────────────────────────────
+
+export interface SyncLog {
+  id: number
+  timestamp: string
+  direction: string
+  status: string
+  pulled: number
+  pushed: number
+  failed: number
+  duplicatesSkipped: number
+  deleted: number
+  tagsUpserted: number
+  durationMs: number
+  error: string
+}
+
+function rowToSyncLog(row: unknown[]): SyncLog {
+  return {
+    id: row[0] as number,
+    timestamp: row[1] as string,
+    direction: row[2] as string,
+    status: row[3] as string,
+    pulled: row[4] as number,
+    pushed: row[5] as number,
+    failed: row[6] as number,
+    duplicatesSkipped: row[7] as number,
+    deleted: row[8] as number,
+    tagsUpserted: row[9] as number,
+    durationMs: row[10] as number,
+    error: row[11] as string,
+  }
+}
+
+export function insertSyncLog(log: Omit<SyncLog, 'id'>): void {
+  const d = getDatabase()
+  d.run(
+    `INSERT INTO sync_logs (timestamp, direction, status, pulled, pushed, failed, duplicates_skipped, deleted, tags_upserted, duration_ms, error)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [log.timestamp, log.direction, log.status, log.pulled, log.pushed, log.failed, log.duplicatesSkipped, log.deleted, log.tagsUpserted, log.durationMs, log.error]
+  )
+  scheduleSave()
+}
+
+export function getSyncLogs(limit = 100): SyncLog[] {
+  const d = getDatabase()
+  const result = d.exec('SELECT * FROM sync_logs ORDER BY id DESC LIMIT ?', [limit])
+  if (result.length === 0) return []
+  return result[0].values.map(rowToSyncLog)
+}
+
+export function getDbStats(): {
+  totalEntries: number
+  syncedEntries: number
+  unsyncedEntries: number
+  totalTags: number
+  noteTypeCount: number
+  sourceTagCount: number
+  objectTypeTagCount: number
+  objectGroupTagCount: number
+  syncLogCount: number
+  dbSizeKB: number
+} {
+  const d = getDatabase()
+
+  const countResult = (sql: string, params?: SqlValue[]): number => {
+    const r = d.exec(sql, params)
+    if (r.length === 0 || r[0].values.length === 0) return 0
+    return r[0].values[0][0] as number
+  }
+
+  const totalEntries = countResult('SELECT COUNT(*) FROM log_entries')
+  const syncedEntries = countResult("SELECT COUNT(*) FROM log_entries WHERE synced = 1")
+  const unsyncedEntries = countResult("SELECT COUNT(*) FROM log_entries WHERE synced = 0")
+  const totalTags = countResult('SELECT COUNT(*) FROM tags')
+  const noteTypeCount = countResult("SELECT COUNT(*) FROM tags WHERE category = 'note_type'")
+  const sourceTagCount = countResult("SELECT COUNT(*) FROM tags WHERE category = 'source'")
+  const objectTypeTagCount = countResult("SELECT COUNT(*) FROM tags WHERE category = 'object_type'")
+  const objectGroupTagCount = countResult("SELECT COUNT(*) FROM tags WHERE category = 'object_group'")
+  const syncLogCount = countResult('SELECT COUNT(*) FROM sync_logs')
+
+  // Estimate DB size from exported data
+  const data = d.export()
+  const dbSizeKB = Math.round(data.byteLength / 1024 * 10) / 10
+
+  return {
+    totalEntries, syncedEntries, unsyncedEntries,
+    totalTags, noteTypeCount, sourceTagCount, objectTypeTagCount, objectGroupTagCount,
+    syncLogCount, dbSizeKB,
+  }
+}
+
+export function clearSyncLogs(): void {
+  const d = getDatabase()
+  d.run('DELETE FROM sync_logs')
+  scheduleSave()
 }

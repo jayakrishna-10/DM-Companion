@@ -8,6 +8,7 @@ import { History } from '@/pages/History'
 import { Issues } from '@/pages/Issues'
 import { Equipment } from '@/pages/Equipment'
 import { Settings } from '@/pages/Settings'
+import { Logs } from '@/pages/Logs'
 import { Toaster } from '@/components/ui/Toaster'
 
 export default function App() {
@@ -23,6 +24,7 @@ export default function App() {
             <Route path="/history" element={<History />} />
             <Route path="/issues" element={<Issues />} />
             <Route path="/equipment" element={<Equipment />} />
+            <Route path="/logs" element={<Logs />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
         </Routes>

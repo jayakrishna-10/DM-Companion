@@ -118,3 +118,31 @@ export interface OpenIssue {
   entry: LogEntry
   resolved: boolean
 }
+
+export interface SyncLog {
+  id: number
+  timestamp: string
+  direction: string
+  status: string
+  pulled: number
+  pushed: number
+  failed: number
+  duplicatesSkipped: number
+  deleted: number
+  tagsUpserted: number
+  durationMs: number
+  error: string
+}
+
+export interface DbStats {
+  totalEntries: number
+  syncedEntries: number
+  unsyncedEntries: number
+  totalTags: number
+  noteTypeCount: number
+  sourceTagCount: number
+  objectTypeTagCount: number
+  objectGroupTagCount: number
+  syncLogCount: number
+  dbSizeKB: number
+}
