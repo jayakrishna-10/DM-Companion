@@ -333,7 +333,7 @@ export function getObjectHierarchy(): { types: string[]; groups: Record<string, 
   const types = [...typesSet].sort()
 
   const groups: Record<string, string[]> = {}
-  const objects: Record<string, ObjectOption[]> = []
+  const objects: Record<string, ObjectOption[]> = {}
 
   for (const type of types) {
     // Get groups from existing entries
