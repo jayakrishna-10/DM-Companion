@@ -2,11 +2,11 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useDatabase } from '@/hooks/useDatabase'
 import { searchEntries } from '@/db/database'
-import { Badge } from '@/components/ui/Badge'
 import { EntryDetailSheet } from '@/components/entry/EntryDetailSheet'
 import { toast } from '@/components/ui/Toaster'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
+import { TimelineCard, TimelineLine } from '@/components/timeline'
 import type { LogEntry } from '@/types'
 import { getNoteTypeColor } from '@/types'
 
@@ -59,7 +59,6 @@ export function Equipment() {
     return counts
   }, [entries])
 
-  // Filtered entries based on active filter
   const filteredEntries = useMemo(() => {
     if (activeFilter === 'all') return entries
     return entries.filter(e => e.noteType === activeFilter)
@@ -93,12 +92,12 @@ export function Equipment() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-neutral-950">
       {/* Back button + header */}
       <div className="px-4 pt-3 pb-2 space-y-3">
         <button
           onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-text-secondary transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
         >
           <ArrowLeft size={14} />
           Back
@@ -106,28 +105,28 @@ export function Equipment() {
 
         {meta && (
           <div>
-            <h1 className="text-xl font-bold text-text-primary">{meta.object}</h1>
+            <h1 className="text-xl font-bold text-neutral-200">{meta.object}</h1>
             <div className="flex items-center gap-2 mt-0.5">
               {meta.objectType && (
-                <span className="text-xs text-text-secondary font-medium bg-surface-2 px-2 py-0.5 rounded-md border border-border-subtle">
+                <span className="text-[9px] font-medium text-neutral-400 bg-neutral-800/80 px-1.5 py-0.5 rounded-md border border-neutral-800">
                   {meta.objectType}
                 </span>
               )}
               {meta.objectGroup && (
-                <span className="text-xs text-text-muted">{meta.objectGroup}</span>
+                <span className="text-[10px] text-neutral-500">{meta.objectGroup}</span>
               )}
             </div>
           </div>
         )}
       </div>
 
-      {/* Summary stats — tappable to filter */}
+      {/* Filter pills */}
       <div className="px-4 pb-3">
-        <div className="flex flex-wrap gap-2">
-          <FilterCard
+        <div className="flex flex-wrap gap-1.5">
+          <FilterPill
             label="All"
             count={entries.length}
-            color="#A1A1AA"
+            color="#737373"
             active={activeFilter === 'all'}
             onClick={() => setActiveFilter('all')}
           />
@@ -135,7 +134,7 @@ export function Equipment() {
             const count = typeCounts[type] || 0
             if (count === 0) return null
             return (
-              <FilterCard
+              <FilterPill
                 key={type}
                 label={type}
                 count={count}
@@ -148,33 +147,34 @@ export function Equipment() {
         </div>
       </div>
 
-      {/* Timeline */}
+      {/* Compact Timeline */}
       <div className="flex-1 overflow-y-auto px-4 pb-24">
         {filteredEntries.length === 0 ? (
           <div className="py-16 text-center">
-            <p className="text-text-muted text-base">No entries found</p>
-            <p className="text-text-muted text-sm mt-1">
+            <p className="text-neutral-500 text-sm">No entries found</p>
+            <p className="text-neutral-600 text-[11px] mt-1">
               {activeFilter !== 'all'
                 ? `No ${activeFilter.toLowerCase()} entries for this equipment.`
                 : 'This equipment has no log entries yet.'}
             </p>
           </div>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-6">
             {Array.from(grouped.entries()).map(([date, dateEntries]) => (
               <div key={date}>
+                {/* Date header */}
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                  <h3 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider font-mono">
                     {formatDate(date)}
                   </h3>
-                  <span className="text-[10px] text-text-muted font-medium bg-surface-2 px-1.5 py-0.5 rounded">
+                  <span className="text-[9px] text-neutral-600 font-medium bg-neutral-800/80 px-1.5 py-0.5 rounded-md border border-neutral-800">
                     {dateEntries.length}
                   </span>
                 </div>
-                <div className="space-y-2">
+                <TimelineLine>
                   <AnimatePresence>
                     {dateEntries.map((entry) => (
-                      <EntryCard
+                      <TimelineCard
                         key={entry.id}
                         entry={entry}
                         onClick={() => {
@@ -184,7 +184,7 @@ export function Equipment() {
                       />
                     ))}
                   </AnimatePresence>
-                </div>
+                </TimelineLine>
               </div>
             ))}
           </div>
@@ -213,9 +213,10 @@ export function Equipment() {
   )
 }
 
-/* ─── Filter card (tappable summary stat) ─── */
 
-function FilterCard({
+/* ─── Filter pill (compact) ─── */
+
+function FilterPill({
   label,
   count,
   color,
@@ -231,71 +232,18 @@ function FilterCard({
   return (
     <button
       onClick={onClick}
-      className={`glass rounded-xl p-3 transition-all duration-150 active:scale-[0.97] ${
-        active ? 'ring-2 ring-offset-1 ring-offset-bg' : ''
+      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[9px] font-medium whitespace-nowrap transition-all duration-150 border ${
+        active
+          ? 'bg-neutral-800 text-neutral-200 border-neutral-700'
+          : 'bg-neutral-800/80 text-neutral-500 border-neutral-800 hover:border-neutral-700 hover:text-neutral-400'
       }`}
-      style={active ? { boxShadow: `0 0 0 2px ${color}40` } : undefined}
     >
-      <div className="flex items-center gap-2 mb-1">
-        <span
-          className="w-2 h-2 rounded-full flex-shrink-0"
-          style={{ backgroundColor: color }}
-        />
-        <span className={`text-xs truncate ${active ? 'text-text-primary font-semibold' : 'text-text-muted'}`}>
-          {label}
-        </span>
-      </div>
-      <p className={`text-xl font-bold ${active ? 'text-text-primary' : 'text-text-secondary'}`}>
-        {count}
-      </p>
+      <span
+        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+        style={{ backgroundColor: color }}
+      />
+      <span>{label}</span>
+      <span className={active ? 'text-teal-400' : 'text-neutral-600'}>{count}</span>
     </button>
-  )
-}
-
-/* ─── Entry card ─── */
-
-function EntryCard({
-  entry,
-  onClick,
-}: {
-  entry: LogEntry
-  onClick: () => void
-}) {
-  const truncatedNote =
-    entry.note.length > 120
-      ? entry.note.slice(0, 120) + '...'
-      : entry.note
-
-  return (
-    <motion.button
-      layout
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: 100 }}
-      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-      onClick={onClick}
-      className="w-full text-left p-3 rounded-lg bg-surface hover:bg-surface-2 border border-border-subtle hover:border-border transition-all duration-150 active:scale-[0.98]"
-    >
-      <div className="flex items-center gap-2 mb-1.5">
-        <Badge type={entry.noteType} size="sm" />
-        <span className="text-xs text-text-muted ml-auto">
-          {formatDate(entry.date)}
-        </span>
-      </div>
-      <p className="text-sm text-text-primary leading-relaxed mb-2">
-        {truncatedNote}
-      </p>
-      <div className="flex items-center gap-1.5 text-[11px] text-text-muted">
-        {entry.source && (
-          <>
-            <span>{entry.source}</span>
-            <span>·</span>
-          </>
-        )}
-        <span className="text-text-secondary font-medium">
-          {entry.object}
-        </span>
-      </div>
-    </motion.button>
   )
 }

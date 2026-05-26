@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router'
 import { useDatabase } from '@/hooks/useDatabase'
-import { EntryRow } from '@/components/entry/EntryRow'
 import { EntryDetailSheet } from '@/components/entry/EntryDetailSheet'
 import { Search } from 'lucide-react'
 import type { LogEntry } from '@/types'
 import { getNoteTypeColor } from '@/types'
 import { toast } from '@/components/ui/Toaster'
+import { TimelineCard, TimelineLine } from '@/components/timeline'
+import { AnimatePresence } from 'framer-motion'
 
 export function History() {
   const navigate = useNavigate()
@@ -33,16 +34,16 @@ export function History() {
   }, [entries])
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-neutral-950">
       <div className="px-4 pt-3 pb-2 space-y-3">
         <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search notes, equipment..."
-            className="w-full h-10 pl-9 pr-4 rounded-xl bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
+            className="w-full h-9 pl-9 pr-4 rounded-lg bg-neutral-900/60 border border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20 transition-all"
           />
         </div>
 
@@ -64,29 +65,33 @@ export function History() {
       <div className="flex-1 overflow-y-auto px-4 pb-24">
         {entries.length === 0 ? (
           <div className="py-16 text-center">
-            <p className="text-text-muted">No entries found</p>
+            <p className="text-neutral-500">No entries found</p>
           </div>
         ) : (
-          <div className="space-y-5">
+          <div>
             {Array.from(grouped.entries()).map(([date, dateEntries]) => (
-              <div key={date}>
+              <div key={date} className="mb-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                    {formatDate(date)}
+                  <h3 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider font-mono">
+                    {formatTimestamp(date)}
                   </h3>
-                  <span className="text-[10px] text-text-muted font-medium bg-surface-2 px-1.5 py-0.5 rounded">
+                  <span className="text-[9px] text-neutral-600 font-medium bg-neutral-800/80 px-1.5 py-0.5 rounded-md border border-neutral-800">
                     {dateEntries.length}
                   </span>
                 </div>
-                <div className="space-y-2">
-                  {dateEntries.map(entry => (
-                    <EntryRow
-                      key={entry.id}
-                      entry={entry}
-                      onClick={(e) => { setSelectedEntry(e); setSheetOpen(true) }}
-                    />
-                  ))}
-                </div>
+                <TimelineLine>
+                  <AnimatePresence>
+                    {dateEntries.map(entry => (
+                      <TimelineCard
+                        key={entry.id}
+                        entry={entry}
+                        onClick={() => { setSelectedEntry(entry); setSheetOpen(true) }}
+                        showObjectLink={true}
+                        onObjectClick={(objectName) => navigate(`/equipment?object=${encodeURIComponent(objectName)}`)}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </TimelineLine>
               </div>
             ))}
           </div>
@@ -120,15 +125,15 @@ function FilterPill({ label, count, active, onClick, type }: {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
+      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[9px] font-medium whitespace-nowrap transition-all flex-shrink-0 border ${
         active
-          ? 'bg-accent/20 text-accent-light border border-accent/30'
-          : 'bg-surface-2 text-text-secondary border border-border-subtle hover:border-border'
+          ? 'bg-teal-500/10 text-teal-400 border-teal-500/30'
+          : 'bg-neutral-800/80 text-neutral-400 border-neutral-800 hover:bg-neutral-700/80 hover:border-neutral-700'
       }`}
     >
       <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: dotColor }} />
       <span>{label}</span>
-      <span className={active ? 'text-accent-light' : 'text-text-muted'}>{count}</span>
+      <span className={active ? 'text-teal-400' : 'text-neutral-500'}>{count}</span>
     </button>
   )
 }
@@ -138,6 +143,16 @@ function formatDate(dateStr: string): string {
     const date = new Date(dateStr + 'T00:00:00')
     if (isNaN(date.getTime())) return dateStr
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  } catch {
+    return dateStr
+  }
+}
+
+function formatTimestamp(dateStr: string): string {
+  try {
+    const date = new Date(dateStr + 'T00:00:00')
+    if (isNaN(date.getTime())) return dateStr
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
   } catch {
     return dateStr
   }

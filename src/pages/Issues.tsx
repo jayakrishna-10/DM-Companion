@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useDatabase } from '@/hooks/useDatabase'
-import { Badge } from '@/components/ui/Badge'
 import { EntryDetailSheet } from '@/components/entry/EntryDetailSheet'
 import { toast } from '@/components/ui/Toaster'
 import { useNavigate } from 'react-router'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence } from 'framer-motion'
+import { TimelineCard, TimelineLine } from '@/components/timeline'
 import type { LogEntry, OpenIssue } from '@/types'
 
 function formatDate(dateStr: string): string {
@@ -41,8 +41,17 @@ export function Issues() {
 
   const displayIssues = tab === 'open' ? openIssues : resolvedIssues
 
+  const grouped = useMemo(() => {
+    const map = new Map<string, OpenIssue[]>()
+    for (const issue of displayIssues) {
+      if (!map.has(issue.entry.date)) map.set(issue.entry.date, [])
+      map.get(issue.entry.date)!.push(issue)
+    }
+    return map
+  }, [displayIssues])
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-neutral-950">
       {/* Summary cards */}
       <div className="px-4 pt-4 pb-3">
         <div className="grid grid-cols-3 gap-2">
@@ -86,26 +95,45 @@ export function Issues() {
       <div className="flex-1 overflow-y-auto px-4 pb-24">
         {displayIssues.length === 0 ? (
           <div className="py-16 text-center">
-            <p className="text-text-muted text-base">
+            <p className="text-neutral-500 text-base">
               {tab === 'open'
                 ? 'No open issues — everything looks good!'
                 : 'No resolved issues yet.'}
             </p>
           </div>
         ) : (
-          <div className="space-y-2">
-            <AnimatePresence>
-              {displayIssues.map(issue => (
-                <IssueCard
-                  key={issue.entry.id}
-                  issue={issue}
-                  onClick={() => {
-                    setSelectedEntry(issue.entry)
-                    setSheetOpen(true)
-                  }}
-                />
-              ))}
-            </AnimatePresence>
+          <div className="space-y-5">
+            {Array.from(grouped.entries()).map(([date, dateIssues]) => (
+              <div key={date}>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider font-mono">
+                    {formatDate(date)}
+                  </h3>
+                  <span className="text-[9px] text-neutral-600 font-medium bg-neutral-800/80 px-1.5 py-0.5 rounded-md border border-neutral-800">
+                    {dateIssues.length}
+                  </span>
+                </div>
+                <TimelineLine>
+                  <AnimatePresence>
+                    {dateIssues.map(issue => (
+                      <TimelineCard
+                        key={issue.entry.id}
+                        entry={issue.entry}
+                        onClick={() => {
+                          setSelectedEntry(issue.entry)
+                          setSheetOpen(true)
+                        }}
+                        extra={issue.resolved ? (
+                          <span className="text-[9px] text-teal-400 font-semibold flex items-center gap-0.5">
+                            ✓ Resolved
+                          </span>
+                        ) : undefined}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </TimelineLine>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -144,15 +172,15 @@ function SummaryCard({
   color: string
 }) {
   return (
-    <div className="glass rounded-xl p-3">
+    <div className="bg-neutral-900/60 border border-neutral-800/50 rounded-xl p-3">
       <div className="flex items-center gap-2 mb-1">
         <span
           className="w-2 h-2 rounded-full flex-shrink-0"
           style={{ backgroundColor: color }}
         />
-        <span className="text-xs text-text-muted truncate">{label}</span>
+        <span className="text-xs text-neutral-500 truncate">{label}</span>
       </div>
-      <p className="text-xl font-bold text-text-primary">{count}</p>
+      <p className="text-xl font-bold text-neutral-200">{count}</p>
     </div>
   )
 }
@@ -173,72 +201,16 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[9px] font-medium whitespace-nowrap transition-all border ${
         active
-          ? 'bg-accent/20 text-accent-light border border-accent/30'
-          : 'bg-surface-2 text-text-secondary border border-border-subtle hover:border-border'
+          ? 'bg-neutral-800 text-neutral-200 border-neutral-700'
+          : 'bg-neutral-800/80 text-neutral-500 border-neutral-800'
       }`}
     >
       <span>{label}</span>
-      <span className={active ? 'text-accent-light' : 'text-text-muted'}>
+      <span className={active ? 'text-teal-400' : 'text-neutral-600'}>
         {count}
       </span>
     </button>
-  )
-}
-
-/* ─── Issue card ─── */
-
-function IssueCard({
-  issue,
-  onClick,
-}: {
-  issue: OpenIssue
-  onClick: () => void
-}) {
-  const { entry, resolved } = issue
-  const truncatedNote =
-    entry.note.length > 80
-      ? entry.note.slice(0, 80) + '...'
-      : entry.note
-
-  return (
-    <motion.button
-      layout
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: 100 }}
-      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-      onClick={onClick}
-      className="w-full text-left p-3 rounded-lg bg-surface hover:bg-surface-2 border border-border-subtle hover:border-border transition-all duration-150 active:scale-[0.98]"
-    >
-      <div className="flex items-center gap-2 mb-1.5">
-        <Badge type={entry.noteType} size="sm" />
-        {resolved && (
-          <span className="text-[10px] text-green-400 font-semibold flex items-center gap-0.5">
-            ✓ Resolved
-          </span>
-        )}
-        <span className="text-xs text-text-muted ml-auto">
-          {formatDate(entry.date)}
-        </span>
-      </div>
-      <p className="text-sm text-text-primary leading-relaxed mb-2">
-        {truncatedNote}
-      </p>
-      <div className="flex items-center gap-1.5 text-[11px] text-text-muted">
-        {entry.objectType && <span>{entry.objectType}</span>}
-        {entry.objectType && entry.objectGroup && <span>·</span>}
-        {entry.objectGroup && <span>{entry.objectGroup}</span>}
-        {entry.object && (
-          <>
-            <span>·</span>
-            <span className="text-text-secondary font-medium">
-              {entry.object}
-            </span>
-          </>
-        )}
-      </div>
-    </motion.button>
   )
 }
