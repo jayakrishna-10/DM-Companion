@@ -320,18 +320,41 @@ export function getEntryCountsByType(): Record<string, number> {
 export function getObjectHierarchy(): { types: string[]; groups: Record<string, string[]>; objects: Record<string, ObjectOption[]> } {
   const d = getDatabase()
 
+  // Get types from existing entries
   const typesResult = d.exec("SELECT DISTINCT object_type FROM log_entries WHERE object_type != '' ORDER BY object_type")
-  const types = typesResult.length > 0 ? typesResult[0].values.map((r: unknown[]) => r[0] as string) : []
+  const entryTypes = typesResult.length > 0 ? typesResult[0].values.map((r: unknown[]) => r[0] as string) : []
+
+  // Get types from tags table (object_type category)
+  const tagTypesResult = d.exec("SELECT name FROM tags WHERE category = 'object_type' ORDER BY sort_order, name")
+  const tagTypes = tagTypesResult.length > 0 ? tagTypesResult[0].values.map((r: unknown[]) => r[0] as string) : []
+
+  // Merge and deduplicate
+  const typesSet = new Set([...entryTypes, ...tagTypes])
+  const types = [...typesSet].sort()
 
   const groups: Record<string, string[]> = {}
-  const objects: Record<string, ObjectOption[]> = {}
+  const objects: Record<string, ObjectOption[]> = []
 
   for (const type of types) {
+    // Get groups from existing entries
     const groupResult = d.exec(
       "SELECT DISTINCT object_group FROM log_entries WHERE object_type = ? AND object_group != '' ORDER BY object_group",
       [type]
     )
-    groups[type] = groupResult.length > 0 ? groupResult[0].values.map((r: unknown[]) => r[0] as string) : []
+    const entryGroups = groupResult.length > 0 ? groupResult[0].values.map((r: unknown[]) => r[0] as string) : []
+
+    // Get groups from tags table (object_group category) — stored as "type|group" in name
+    const tagGroupsResult = d.exec(
+      "SELECT name FROM tags WHERE category = 'object_group' AND name LIKE ? ORDER BY sort_order, name",
+      [type + '|%']
+    )
+    const tagGroups = tagGroupsResult.length > 0
+      ? tagGroupsResult[0].values.map((r: unknown[]) => (r[0] as string).split('|').pop()! as string)
+      : []
+
+    // Merge and deduplicate groups
+    const groupsSet = new Set([...entryGroups, ...tagGroups])
+    groups[type] = [...groupsSet].sort()
 
     for (const group of groups[type]) {
       const objResult = d.exec(
@@ -517,7 +540,7 @@ export function getSourceTags(): string[] {
   return getTags('source').map(t => t.name)
 }
 
-export function addTag(tag: { name: string; category: 'note_type' | 'source'; color?: string; sortOrder?: number }): number {
+export function addTag(tag: { name: string; category: 'note_type' | 'source' | 'object_type' | 'object_group'; color?: string; sortOrder?: number }): number {
   const d = getDatabase()
   const color = tag.color || getNoteTypeColor(tag.name)
   d.run(

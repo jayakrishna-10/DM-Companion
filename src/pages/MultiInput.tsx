@@ -258,7 +258,7 @@ interface EntryCardProps {
   entry: ParsedEntry
   noteTypes: string[]
   sourceTags: string[]
-  addTag: (tag: { name: string; category: 'note_type' | 'source'; color?: string }) => void
+  addTag: (tag: { name: string; category: 'note_type' | 'source' | 'object_type' | 'object_group'; color?: string }) => void
   onUpdate: (updates: Partial<ParsedEntry>) => void
   onRemove: () => void
   hierarchy: ObjectHierarchy
@@ -273,11 +273,23 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
   const [newNoteTypeName, setNewNoteTypeName] = useState('')
   const [showAddSource, setShowAddSource] = useState(false)
   const [newSourceName, setNewSourceName] = useState('')
+  const [showAddObjectType, setShowAddObjectType] = useState(false)
+  const [newObjectTypeName, setNewObjectTypeName] = useState('')
+  const [showAddObjectGroup, setShowAddObjectGroup] = useState(false)
+  const [newObjectGroupName, setNewObjectGroupName] = useState('')
 
-  const typeOptions = hierarchy.types.map(t => ({ value: t, label: t }))
-  const groupOptions = entry.objectType
-    ? (hierarchy.groups[entry.objectType] || []).map(g => ({ value: g, label: g }))
-    : []
+  const typeOptions = useMemo(() => {
+    const options = hierarchy.types.map(t => ({ value: t, label: t }))
+    options.push({ value: '__add_new__', label: '+ Add new type...' })
+    return options
+  }, [hierarchy.types])
+
+  const groupOptions = useMemo(() => {
+    if (!entry.objectType) return []
+    const options = (hierarchy.groups[entry.objectType] || []).map(g => ({ value: g, label: g }))
+    options.push({ value: '__add_new__', label: '+ Add new group...' })
+    return options
+  }, [entry.objectType, hierarchy.groups])
   const objectOptions = entry.objectGroup
     ? (hierarchy.objects[entry.objectGroup] || []).map(o => ({ value: o.object, label: o.object }))
     : []
@@ -362,6 +374,54 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
       setNewSourceName('')
       setShowAddSource(false)
       toast('Source added', 'success')
+    }
+  }
+
+  const handleObjectTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value
+    if (val === '__add_new__') {
+      setShowAddObjectType(true)
+    } else {
+      onUpdate({ objectType: val, objectGroup: '', object: '' })
+      setSearchQuery('')
+      setShowAddObjectType(false)
+      setNewObjectTypeName('')
+    }
+  }
+
+  const handleAddObjectType = () => {
+    const trimmed = newObjectTypeName.trim()
+    if (trimmed) {
+      addTag({ name: trimmed, category: 'object_type' })
+      onUpdate({ objectType: trimmed, objectGroup: '', object: '' })
+      setNewObjectTypeName('')
+      setShowAddObjectType(false)
+      setSearchQuery('')
+      toast('Object type added', 'success')
+    }
+  }
+
+  const handleObjectGroupChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value
+    if (val === '__add_new__') {
+      setShowAddObjectGroup(true)
+    } else {
+      onUpdate({ objectGroup: val, object: '' })
+      setSearchQuery('')
+      setShowAddObjectGroup(false)
+      setNewObjectGroupName('')
+    }
+  }
+
+  const handleAddObjectGroup = () => {
+    const trimmed = newObjectGroupName.trim()
+    if (trimmed && entry.objectType) {
+      addTag({ name: entry.objectType + '|' + trimmed, category: 'object_group' })
+      onUpdate({ objectGroup: trimmed, object: '' })
+      setNewObjectGroupName('')
+      setShowAddObjectGroup(false)
+      setSearchQuery('')
+      toast('Object group added', 'success')
     }
   }
 
@@ -604,21 +664,87 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
                 </button>
                 {showDropdowns && (
                   <div className="space-y-2">
-                    <Select
-                      label="Type"
-                      options={typeOptions}
-                      placeholder="Select type..."
-                      value={entry.objectType}
-                      onChange={e => { onUpdate({ objectType: e.target.value, objectGroup: '', object: '' }); setSearchQuery('') }}
-                    />
-                    {entry.objectType && (
+                    <div className="space-y-1.5">
                       <Select
-                        label="Group"
-                        options={groupOptions}
-                        placeholder="Select group..."
-                        value={entry.objectGroup}
-                        onChange={e => { onUpdate({ objectGroup: e.target.value, object: '' }); setSearchQuery('') }}
+                        label="Type"
+                        options={typeOptions}
+                        placeholder="Select type..."
+                        value={showAddObjectType ? '' : entry.objectType}
+                        onChange={handleObjectTypeChange}
                       />
+                      <AnimatePresence>
+                        {showAddObjectType && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="flex items-center gap-1.5 overflow-hidden"
+                          >
+                            <input
+                              type="text"
+                              value={newObjectTypeName}
+                              onChange={e => setNewObjectTypeName(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') handleAddObjectType()
+                                if (e.key === 'Escape') { setShowAddObjectType(false); setNewObjectTypeName('') }
+                              }}
+                              placeholder="New type name..."
+                              className="flex-1 h-9 px-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+                              autoFocus
+                            />
+                            <button
+                              type="button"
+                              onClick={handleAddObjectType}
+                              disabled={!newObjectTypeName.trim()}
+                              className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white text-xs disabled:opacity-50 transition-opacity"
+                            >
+                              <Check size={14} />
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                    {entry.objectType && (
+                      <div className="space-y-1.5">
+                        <Select
+                          label="Group"
+                          options={groupOptions}
+                          placeholder="Select group..."
+                          value={showAddObjectGroup ? '' : entry.objectGroup}
+                          onChange={handleObjectGroupChange}
+                        />
+                        <AnimatePresence>
+                          {showAddObjectGroup && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="flex items-center gap-1.5 overflow-hidden"
+                            >
+                              <input
+                                type="text"
+                                value={newObjectGroupName}
+                                onChange={e => setNewObjectGroupName(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') handleAddObjectGroup()
+                                  if (e.key === 'Escape') { setShowAddObjectGroup(false); setNewObjectGroupName('') }
+                                }}
+                                placeholder="New group name..."
+                                className="flex-1 h-9 px-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={handleAddObjectGroup}
+                                disabled={!newObjectGroupName.trim()}
+                                className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white text-xs disabled:opacity-50 transition-opacity"
+                              >
+                                <Check size={14} />
+                              </button>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
                     )}
                     {entry.objectGroup && (
                       <Select

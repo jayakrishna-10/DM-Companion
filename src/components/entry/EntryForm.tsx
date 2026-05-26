@@ -30,11 +30,15 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showAddSource, setShowAddSource] = useState(false)
   const [newSourceName, setNewSourceName] = useState('')
+  const [showAddObjectType, setShowAddObjectType] = useState(false)
+  const [newObjectTypeName, setNewObjectTypeName] = useState('')
+  const [showAddObjectGroup, setShowAddObjectGroup] = useState(false)
+  const [newObjectGroupName, setNewObjectGroupName] = useState('')
 
   const hierarchy = getHierarchy()
 
-  const typeOptions = hierarchy.types.map(t => ({ value: t, label: t }))
-  const groupOptions = objectType ? (hierarchy.groups[objectType] || []).map(g => ({ value: g, label: g })) : []
+  const typeOptions = [...hierarchy.types.map(t => ({ value: t, label: t })), { value: '__add_new__', label: '+ Add new type...' }]
+  const groupOptions = objectType ? [...(hierarchy.groups[objectType] || []).map(g => ({ value: g, label: g })), { value: '__add_new__', label: '+ Add new group...' }] : []
   const objectOptions = objectGroup ? (hierarchy.objects[objectGroup] || []).map(o => ({ value: o.object, label: o.object })) : []
 
   // Build source options from dynamic sourceTags + add-new option
@@ -72,6 +76,54 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
       setNewSourceName('')
       setShowAddSource(false)
       toast('Source added', 'success')
+    }
+  }
+
+  const handleObjectTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value
+    if (val === '__add_new__') {
+      setShowAddObjectType(true)
+    } else {
+      setObjectType(val)
+      setObjectGroup('')
+      setObject('')
+      setShowAddObjectType(false)
+    }
+  }
+
+  const handleAddObjectType = () => {
+    const trimmed = newObjectTypeName.trim()
+    if (trimmed) {
+      addTag({ name: trimmed, category: 'object_type' })
+      setObjectType(trimmed)
+      setObjectGroup('')
+      setObject('')
+      setNewObjectTypeName('')
+      setShowAddObjectType(false)
+      toast('Object type added', 'success')
+    }
+  }
+
+  const handleObjectGroupChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value
+    if (val === '__add_new__') {
+      setShowAddObjectGroup(true)
+    } else {
+      setObjectGroup(val)
+      setObject('')
+      setShowAddObjectGroup(false)
+    }
+  }
+
+  const handleAddObjectGroup = () => {
+    const trimmed = newObjectGroupName.trim()
+    if (trimmed && objectType) {
+      addTag({ name: objectType + '|' + trimmed, category: 'object_group' })
+      setObjectGroup(trimmed)
+      setObject('')
+      setNewObjectGroupName('')
+      setShowAddObjectGroup(false)
+      toast('Object group added', 'success')
     }
   }
 
@@ -278,17 +330,77 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
                 label="Object Type"
                 options={typeOptions}
                 placeholder="Select type..."
-                value={objectType}
-                onChange={e => { setObjectType(e.target.value); setObjectGroup(''); setObject('') }}
+                value={showAddObjectType ? '' : objectType}
+                onChange={handleObjectTypeChange}
               />
+              {showAddObjectType && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="flex items-center gap-1.5 overflow-hidden"
+                >
+                  <input
+                    type="text"
+                    value={newObjectTypeName}
+                    onChange={e => setNewObjectTypeName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') handleAddObjectType()
+                      if (e.key === 'Escape') { setShowAddObjectType(false); setNewObjectTypeName('') }
+                    }}
+                    placeholder="New object type..."
+                    className="flex-1 h-9 px-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddObjectType}
+                    disabled={!newObjectTypeName.trim()}
+                    className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white text-xs disabled:opacity-50 transition-opacity"
+                  >
+                    <Check size={14} />
+                  </button>
+                </motion.div>
+              )}
               {objectType && (
-                <Select
-                  label="Object Group"
-                  options={groupOptions}
-                  placeholder="Select group..."
-                  value={objectGroup}
-                  onChange={e => { setObjectGroup(e.target.value); setObject('') }}
-                />
+                <div className="space-y-1.5">
+                  <Select
+                    label="Object Group"
+                    options={groupOptions}
+                    placeholder="Select group..."
+                    value={showAddObjectGroup ? '' : objectGroup}
+                    onChange={handleObjectGroupChange}
+                  />
+                  {showAddObjectGroup && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="flex items-center gap-1.5 overflow-hidden"
+                    >
+                      <input
+                        type="text"
+                        value={newObjectGroupName}
+                        onChange={e => setNewObjectGroupName(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleAddObjectGroup()
+                          if (e.key === 'Escape') { setShowAddObjectGroup(false); setNewObjectGroupName('') }
+                        }}
+                        placeholder="New object group..."
+                        className="flex-1 h-9 px-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddObjectGroup}
+                        disabled={!newObjectGroupName.trim()}
+                        className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white text-xs disabled:opacity-50 transition-opacity"
+                      >
+                        <Check size={14} />
+                      </button>
+                    </motion.div>
+                  )}
+                </div>
               )}
               {objectGroup && (
                 <Select

@@ -73,7 +73,7 @@ export const NOTE_TYPE_GRADIENT: Record<string, string> = {
 export interface Tag {
   id: number
   name: string
-  category: 'note_type' | 'source'
+  category: 'note_type' | 'source' | 'object_type' | 'object_group'
   color: string
   sortOrder: number
 }
