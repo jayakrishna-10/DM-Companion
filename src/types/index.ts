@@ -39,7 +39,6 @@ export function getNoteTypeColor(type: string): string {
 }
 
 export function getNoteTypeBg(type: string): string {
-  const color = getNoteTypeColor(type)
   // For known colors, return precise rgba; for hsl colors, use opacity trick
   if (KNOWN_COLORS[type]) {
     const hex = KNOWN_COLORS[type]
