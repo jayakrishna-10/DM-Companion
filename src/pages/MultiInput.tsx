@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+﻿import { useState, useMemo } from 'react'
 import { useDatabase } from '@/hooks/useDatabase'
 import { parseMultiInput, autoTagEntries, detectNoteType, detectObjects } from '@/utils/auto-tag'
 import type { LogEntryFormData, ObjectOption, ObjectHierarchy } from '@/types'
@@ -170,12 +170,12 @@ export function MultiInput() {
           <textarea
             value={rawText}
             onChange={e => setRawText(e.target.value)}
-            placeholder={`• R5C resin removed\n• P2-4 discharge valves are closed\n• HCl tanker unloaded\n• NRV is not working for P4-4\n1) P8B pump servicing going\n2) R7-C framework going`}
+            placeholder={`â€¢ R5C resin removed\nâ€¢ P2-4 discharge valves are closed\nâ€¢ HCl tanker unloaded\nâ€¢ NRV is not working for P4-4\n1) P8B pump servicing going\n2) R7-C framework going`}
             className="w-full px-3 py-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all resize-none min-h-[200px]"
             rows={8}
           />
           <p className="text-[10px] text-text-muted">
-            Supports bullet points (•, -, *), numbered items (1., 2.), or plain newlines
+            Supports bullet points (â€¢, -, *), numbered items (1., 2.), or plain newlines
           </p>
         </div>
 
@@ -448,16 +448,6 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
     }
   }
 
-  const handleSourceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value
-    if (val === '__add_new__') {
-      setShowAddSource(true)
-    } else {
-      onUpdate({ source: val })
-      setShowAddSource(false)
-    }
-  }
-
   function shortenLabel(type: string): string {
     if (type === 'Activity') return 'Act'
     if (type === 'Complaints') return 'Cmpl'
@@ -489,7 +479,7 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
             </span>
             {entry.object && (
               <span className="text-[10px] text-text-muted">
-                · {entry.object}
+                Â· {entry.object}
               </span>
             )}
           </div>
@@ -636,7 +626,7 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
                       onClick={() => { onUpdate({ object: '', objectGroup: '', objectType: '' }); setSearchQuery('') }}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary text-xs"
                     >
-                      ✕
+                      âœ•
                     </button>
                   )}
                 </div>
@@ -676,7 +666,7 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
                         className="w-full text-left px-3 py-1.5 hover:bg-surface-2 transition-colors border-b border-border-subtle last:border-0"
                       >
                         <span className="text-sm text-text-primary font-medium">{obj.object}</span>
-                        <span className="text-xs text-text-muted ml-2">{obj.objectGroup} · {obj.objectType}</span>
+                        <span className="text-xs text-text-muted ml-2">{obj.objectGroup} Â· {obj.objectType}</span>
                       </button>
                     ))}
                   </div>
@@ -684,7 +674,7 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
                 {entry.object && !searchQuery && (
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-accent/10 border border-accent/20">
                     <span className="text-sm text-accent-light font-medium">{entry.object}</span>
-                    <span className="text-xs text-text-muted">{entry.objectGroup} · {entry.objectType}</span>
+                    <span className="text-xs text-text-muted">{entry.objectGroup} Â· {entry.objectType}</span>
                   </div>
                 )}
                 <button

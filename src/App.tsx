@@ -9,6 +9,8 @@ import { Issues } from '@/pages/Issues'
 import { Equipment } from '@/pages/Equipment'
 import { Settings } from '@/pages/Settings'
 import { Logs } from '@/pages/Logs'
+import { Profiles } from '@/pages/Profiles'
+import { ProfileDetail } from '@/pages/ProfileDetail'
 import { Toaster } from '@/components/ui/Toaster'
 
 export default function App() {
@@ -21,6 +23,8 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/new" element={<NewEntry />} />
             <Route path="/multi" element={<MultiInput />} />
+            <Route path="/profiles" element={<Profiles />} />
+            <Route path="/profile" element={<ProfileDetail />} />
             <Route path="/history" element={<History />} />
             <Route path="/issues" element={<Issues />} />
             <Route path="/equipment" element={<Equipment />} />
