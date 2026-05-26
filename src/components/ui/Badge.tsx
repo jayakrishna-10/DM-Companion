@@ -1,4 +1,4 @@
-import { getNoteTypeColor, getNoteTypeBg } from '@/types'
+import { getNoteTypeColor } from '@/types'
 
 interface BadgeProps {
   type: string
