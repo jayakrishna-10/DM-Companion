@@ -78,7 +78,8 @@ function createTables(database: Database) {
       deleted INTEGER DEFAULT 0,
       tags_upserted INTEGER DEFAULT 0,
       duration_ms INTEGER DEFAULT 0,
-      error TEXT DEFAULT ''
+      error TEXT DEFAULT '',
+      updated INTEGER DEFAULT 0
     )
   `)
 
@@ -91,6 +92,17 @@ function createTables(database: Database) {
   if (existing.length === 0 || existing[0].values.length === 0) {
     database.run("INSERT INTO schema_version (version) VALUES (1)")
   }
+
+  // Migration: add updated column to sync_logs if missing
+  try {
+    const cols = database.exec("PRAGMA table_info(sync_logs)")
+    if (cols.length > 0) {
+      const hasUpdated = cols[0].values.some((c: unknown[]) => c[1] === 'updated')
+      if (!hasUpdated) {
+        database.exec("ALTER TABLE sync_logs ADD COLUMN updated INTEGER DEFAULT 0")
+      }
+    }
+  } catch { /* column already exists */ }
 
   scheduleSave()
 }
@@ -215,6 +227,7 @@ export function updateEntry(id: number, entry: Partial<{
   if (fields.length === 0) return
 
   fields.push("updated_at = datetime('now', 'localtime')")
+  fields.push('synced = 0')
   values.push(id)
 
   d.run(`UPDATE log_entries SET ${fields.join(', ')} WHERE id = ?`, values)
@@ -463,6 +476,49 @@ export function getExistingNotionPageIds(): Set<string> {
   return new Set(result[0].values.map((r: unknown[]) => r[0] as string))
 }
 
+export function getEntryByNotionPageId(notionPageId: string): LogEntry | null {
+  const d = getDatabase()
+  const result = d.exec('SELECT * FROM log_entries WHERE notion_page_id = ?', [notionPageId])
+  if (result.length === 0 || result[0].values.length === 0) return null
+  return rowToEntry(result[0].values[0])
+}
+
+/**
+ * Update a local entry from Notion data.
+ * Unlike updateEntry(), this does NOT set synced = 0 because the update
+ * originates from Notion (the entry is already in sync).
+ */
+export function updateEntryFromNotion(id: number, entry: {
+  note?: string
+  date?: string
+  noteType?: string
+  object?: string
+  objectGroup?: string
+  objectType?: string
+  source?: string
+}): void {
+  const d = getDatabase()
+  const fields: string[] = []
+  const values: SqlValue[] = []
+
+  if (entry.note !== undefined) { fields.push('note = ?'); values.push(entry.note) }
+  if (entry.date !== undefined) { fields.push('date = ?'); values.push(entry.date) }
+  if (entry.noteType !== undefined) { fields.push('note_type = ?'); values.push(entry.noteType) }
+  if (entry.object !== undefined) { fields.push('object = ?'); values.push(entry.object) }
+  if (entry.objectGroup !== undefined) { fields.push('object_group = ?'); values.push(entry.objectGroup) }
+  if (entry.objectType !== undefined) { fields.push('object_type = ?'); values.push(entry.objectType) }
+  if (entry.source !== undefined) { fields.push('source = ?'); values.push(entry.source) }
+
+  if (fields.length === 0) return
+
+  fields.push("updated_at = datetime('now', 'localtime')")
+  // Do NOT set synced = 0 — this update comes from Notion, entry stays in sync
+  values.push(id)
+
+  d.run(`UPDATE log_entries SET ${fields.join(', ')} WHERE id = ?`, values)
+  scheduleSave()
+}
+
 /**
  * Check if an entry with the same content already exists locally.
  * Used to prevent duplicates when pulling from Notion.
@@ -599,7 +655,7 @@ export function deleteTag(id: number): void {
   scheduleSave()
 }
 
-export function upsertTagsFromNotion(tags: { name: string; category: 'note_type' | 'source'; color?: string }[]): number {
+export function upsertTagsFromNotion(tags: { name: string; category: 'note_type' | 'source' | 'object_type' | 'object_group' | 'object'; color?: string }[]): number {
   const d = getDatabase()
   let upserted = 0
   d.run('BEGIN TRANSACTION')
@@ -623,6 +679,53 @@ export function upsertTagsFromNotion(tags: { name: string; category: 'note_type'
           'UPDATE tags SET color = ?, synced = 1 WHERE name = ? AND category = ?',
           [color, tag.name, tag.category]
         )
+      }
+    }
+    d.run('COMMIT')
+  } catch {
+    d.run('ROLLBACK')
+  }
+  if (upserted > 0) scheduleSave()
+  return upserted
+}
+
+/**
+ * Derive and upsert object_type, object_group, and object tags from entry data.
+ * Uses hierarchical naming: "type|group" for groups, "type|group|name" for objects.
+ * This ensures the hierarchy builder in getObjectHierarchy() works correctly.
+ */
+export function upsertEntryTags(entries: { objectType: string; objectGroup: string; object: string }[]): number {
+  const d = getDatabase()
+  let upserted = 0
+  d.run('BEGIN TRANSACTION')
+  try {
+    for (const entry of entries) {
+      // Upsert object_type tag (flat name)
+      if (entry.objectType) {
+        const existing = d.exec('SELECT id FROM tags WHERE name = ? AND category = ?', [entry.objectType, 'object_type'])
+        if (existing.length === 0 || existing[0].values.length === 0) {
+          const color = getNoteTypeColor(entry.objectType)
+          d.run('INSERT OR IGNORE INTO tags (name, category, color, sort_order, synced) VALUES (?, ?, ?, 0, 1)', [entry.objectType, 'object_type', color])
+          upserted++
+        }
+      }
+      // Upsert object_group tag (hierarchical: "type|group")
+      if (entry.objectType && entry.objectGroup) {
+        const hierarchicalName = `${entry.objectType}|${entry.objectGroup}`
+        const existing = d.exec('SELECT id FROM tags WHERE name = ? AND category = ?', [hierarchicalName, 'object_group'])
+        if (existing.length === 0 || existing[0].values.length === 0) {
+          d.run('INSERT OR IGNORE INTO tags (name, category, color, sort_order, synced) VALUES (?, ?, ?, 0, 1)', [hierarchicalName, 'object_group', ''])
+          upserted++
+        }
+      }
+      // Upsert object tag (hierarchical: "type|group|name")
+      if (entry.objectType && entry.objectGroup && entry.object) {
+        const hierarchicalName = `${entry.objectType}|${entry.objectGroup}|${entry.object}`
+        const existing = d.exec('SELECT id FROM tags WHERE name = ? AND category = ?', [hierarchicalName, 'object'])
+        if (existing.length === 0 || existing[0].values.length === 0) {
+          d.run('INSERT OR IGNORE INTO tags (name, category, color, sort_order, synced) VALUES (?, ?, ?, 0, 1)', [hierarchicalName, 'object', ''])
+          upserted++
+        }
       }
     }
     d.run('COMMIT')
@@ -705,6 +808,7 @@ export interface SyncLog {
   failed: number
   duplicatesSkipped: number
   deleted: number
+  updated: number
   tagsUpserted: number
   durationMs: number
   error: string
@@ -724,15 +828,16 @@ function rowToSyncLog(row: unknown[]): SyncLog {
     tagsUpserted: row[9] as number,
     durationMs: row[10] as number,
     error: row[11] as string,
+    updated: (row[12] as number) || 0,
   }
 }
 
 export function insertSyncLog(log: Omit<SyncLog, 'id'>): void {
   const d = getDatabase()
   d.run(
-    `INSERT INTO sync_logs (timestamp, direction, status, pulled, pushed, failed, duplicates_skipped, deleted, tags_upserted, duration_ms, error)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [log.timestamp, log.direction, log.status, log.pulled, log.pushed, log.failed, log.duplicatesSkipped, log.deleted, log.tagsUpserted, log.durationMs, log.error]
+    `INSERT INTO sync_logs (timestamp, direction, status, pulled, pushed, failed, duplicates_skipped, deleted, tags_upserted, duration_ms, error, updated)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [log.timestamp, log.direction, log.status, log.pulled, log.pushed, log.failed, log.duplicatesSkipped, log.deleted, log.tagsUpserted, log.durationMs, log.error, log.updated]
   )
   scheduleSave()
 }

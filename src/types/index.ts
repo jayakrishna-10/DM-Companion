@@ -129,6 +129,7 @@ export interface SyncLog {
   failed: number
   duplicatesSkipped: number
   deleted: number
+  updated: number
   tagsUpserted: number
   durationMs: number
   error: string

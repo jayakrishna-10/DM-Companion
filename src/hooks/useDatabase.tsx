@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
-import { initDatabase, getDatabase, insertEntry, insertEntryFromNotion, updateEntry, deleteEntry, getEntriesByDate, getEntryCountsByType, searchEntries, getEntries, importFromCSV, clearAllData, exportAllEntries, getObjectHierarchy, getUnsyncedEntries, getExistingNotionPageIds, markAsSynced, isDuplicateEntry, deleteNotionRemovedEntries, getOpenIssues, getTags, getNoteTypes, getSourceTags, addTag, deleteTag, upsertTagsFromNotion, insertSyncLog, getSyncLogs, getDbStats, clearSyncLogs } from '@/db/database'
+import { initDatabase, getDatabase, insertEntry, insertEntryFromNotion, updateEntry, updateEntryFromNotion, deleteEntry, getEntriesByDate, getEntryCountsByType, searchEntries, getEntries, importFromCSV, clearAllData, exportAllEntries, getObjectHierarchy, getUnsyncedEntries, getExistingNotionPageIds, getEntryByNotionPageId, markAsSynced, isDuplicateEntry, deleteNotionRemovedEntries, getOpenIssues, getTags, getNoteTypes, getSourceTags, addTag, deleteTag, upsertTagsFromNotion, upsertEntryTags, insertSyncLog, getSyncLogs, getDbStats, clearSyncLogs } from '@/db/database'
 import { seedDatabase } from '@/db/seed'
 import type { LogEntry, LogEntryFormData, NoteType, ObjectHierarchy, OpenIssue, SyncStatus, Tag, SyncLog, DbStats } from '@/types'
 
@@ -183,6 +183,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     let totalFailed = 0
     let totalDuplicatesSkipped = 0
     let totalDeleted = 0
+    let totalUpdated = 0
     let totalTagsUpserted = 0
     let syncError = ''
 
@@ -196,7 +197,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
           const schemaRes = await fetch('/api/notion-schema')
           if (schemaRes.ok) {
             const schemaData = await schemaRes.json()
-            const notionTags: { name: string; category: 'note_type' | 'source'; color?: string }[] = []
+            const notionTags: { name: string; category: 'note_type' | 'source' | 'object_type' | 'object_group' | 'object'; color?: string }[] = []
 
             // Map note type options
             for (const opt of (schemaData.noteTypes || [])) {
@@ -205,6 +206,18 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
             // Map source options
             for (const opt of (schemaData.sources || [])) {
               notionTags.push({ name: opt.name, category: 'source', color: opt.color })
+            }
+            // Map object type options
+            for (const opt of (schemaData.objectTypes || [])) {
+              notionTags.push({ name: opt.name, category: 'object_type', color: opt.color })
+            }
+            // Map object group options (flat names from Notion schema)
+            for (const opt of (schemaData.objectGroups || [])) {
+              notionTags.push({ name: opt.name, category: 'object_group', color: opt.color })
+            }
+            // Map object options (flat names from Notion schema)
+            for (const opt of (schemaData.objects || [])) {
+              notionTags.push({ name: opt.name, category: 'object', color: opt.color })
             }
 
             if (notionTags.length > 0) {
@@ -283,6 +296,56 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
           } else {
             console.log('[sync] No new entries from Notion (all', allEntries.length, 'already exist locally)')
           }
+
+          // --- Update existing entries whose Notion data differs ---
+          const existingNotionEntries = allEntries.filter((e) => existingPageIds.has(e.notionPageId))
+          let updatedFromNotion = 0
+
+          for (const entry of existingNotionEntries) {
+            const localEntry = getEntryByNotionPageId(entry.notionPageId)
+            if (localEntry) {
+              // Check if any field differs
+              if (localEntry.note !== entry.note ||
+                  localEntry.date !== entry.date ||
+                  localEntry.noteType !== entry.noteType ||
+                  localEntry.object !== (entry.object || '') ||
+                  localEntry.objectGroup !== (entry.objectGroup || '') ||
+                  localEntry.objectType !== (entry.objectType || '') ||
+                  localEntry.source !== (entry.source || '')) {
+                updateEntryFromNotion(localEntry.id, {
+                  note: entry.note,
+                  date: entry.date,
+                  noteType: entry.noteType,
+                  object: entry.object || '',
+                  objectGroup: entry.objectGroup || '',
+                  objectType: entry.objectType || '',
+                  source: entry.source || '',
+                })
+                updatedFromNotion++
+              }
+            }
+          }
+
+          if (updatedFromNotion > 0) {
+            console.log(`[sync] Updated ${updatedFromNotion} local entries from Notion`)
+            totalUpdated += updatedFromNotion
+            refreshEntries()
+          }
+
+          // --- Upsert entry-derived tags (object_type, object_group, object) ---
+          const entriesWithObjects = allEntries.filter(e => e.objectType || e.objectGroup || e.object)
+          if (entriesWithObjects.length > 0) {
+            const entryTagsUpserted = upsertEntryTags(entriesWithObjects.map(e => ({
+              objectType: e.objectType,
+              objectGroup: e.objectGroup,
+              object: e.object,
+            })))
+            if (entryTagsUpserted > 0) {
+              console.log(`[sync] Upserted ${entryTagsUpserted} entry-derived tags`)
+              totalTagsUpserted += entryTagsUpserted
+              refreshTags()
+            }
+          }
         } else {
           const errData = await pullRes.json().catch(() => ({}))
           console.error('[sync] Pull from Notion failed:', pullRes.status, errData.error || pullRes.statusText)
@@ -300,51 +363,104 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
       if (unsynced.length === 0) {
         console.log('[sync] No unsynced entries to push')
       } else {
-        console.log(`[sync] Pushing ${unsynced.length} unsynced entries to Notion...`)
+        // Separate into creates (no notionPageId) and updates (has notionPageId)
+        const toCreate = unsynced.filter(e => !e.notionPageId)
+        const toUpdate = unsynced.filter(e => !!e.notionPageId)
 
-        const res = await fetch('/api/notion-sync', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            entries: unsynced.map(e => ({
-              id: e.id,
-              note: e.note,
-              date: e.date,
-              noteType: e.noteType,
-              object: e.object,
-              objectGroup: e.objectGroup,
-              objectType: e.objectType,
-              source: e.source,
-            })),
-          }),
-        })
+        // --- CREATE new entries ---
+        if (toCreate.length > 0) {
+          console.log(`[sync] Creating ${toCreate.length} new entries in Notion...`)
 
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}))
-          console.error('[sync] Server responded with error:', res.status, data.error || res.statusText)
-          syncError += (syncError ? '; ' : '') + `Push failed: ${res.status} ${data.error || res.statusText}`
-          totalFailed += unsynced.length
-        } else {
-          const data = await res.json()
-          console.log(`[sync] Push result: ${data.synced.length} synced, ${data.failed.length} failed`)
+          const res = await fetch('/api/notion-sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              entries: toCreate.map(e => ({
+                id: e.id,
+                note: e.note,
+                date: e.date,
+                noteType: e.noteType,
+                object: e.object,
+                objectGroup: e.objectGroup,
+                objectType: e.objectType,
+                source: e.source,
+              })),
+            }),
+          })
 
-          totalPushed += data.synced.length
-          totalFailed += data.failed.length
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}))
+            console.error('[sync] Create push failed:', res.status, data.error || res.statusText)
+            syncError += (syncError ? '; ' : '') + `Create push failed: ${res.status} ${data.error || res.statusText}`
+            totalFailed += toCreate.length
+          } else {
+            const data = await res.json()
+            console.log(`[sync] Create result: ${data.synced.length} synced, ${data.failed.length} failed`)
 
-          if (data.failed.length > 0) {
-            console.error('[sync] Failed entries:', data.failed)
+            totalPushed += data.synced.length
+            totalFailed += data.failed.length
+
+            if (data.failed.length > 0) {
+              console.error('[sync] Failed creates:', data.failed)
+            }
+
+            const database = getDatabase()
+            const syncedIds: number[] = []
+
+            for (const synced of data.synced) {
+              syncedIds.push(synced.id)
+              database.run('UPDATE log_entries SET notion_page_id = ? WHERE id = ?', [synced.notionPageId, synced.id])
+            }
+
+            if (syncedIds.length > 0) {
+              markAsSynced(syncedIds)
+            }
           }
+        }
 
-          const database = getDatabase()
-          const syncedIds: number[] = []
+        // --- UPDATE existing entries ---
+        if (toUpdate.length > 0) {
+          console.log(`[sync] Updating ${toUpdate.length} entries in Notion...`)
 
-          for (const synced of data.synced) {
-            syncedIds.push(synced.id)
-            database.run('UPDATE log_entries SET notion_page_id = ? WHERE id = ?', [synced.notionPageId, synced.id])
-          }
+          const updateRes = await fetch('/api/notion-update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              updates: toUpdate.map(e => ({
+                id: e.id,
+                notionPageId: e.notionPageId,
+                note: e.note,
+                date: e.date,
+                noteType: e.noteType,
+                object: e.object,
+                objectGroup: e.objectGroup,
+                objectType: e.objectType,
+                source: e.source,
+              })),
+            }),
+          })
 
-          if (syncedIds.length > 0) {
-            markAsSynced(syncedIds)
+          if (!updateRes.ok) {
+            const data = await updateRes.json().catch(() => ({}))
+            console.error('[sync] Update push failed:', updateRes.status, data.error || updateRes.statusText)
+            syncError += (syncError ? '; ' : '') + `Update push failed: ${updateRes.status} ${data.error || updateRes.statusText}`
+            totalFailed += toUpdate.length
+          } else {
+            const data = await updateRes.json()
+            console.log(`[sync] Update result: ${data.updated.length} updated, ${data.failed.length} failed`)
+
+            totalUpdated += data.updated.length
+            totalFailed += data.failed.length
+
+            if (data.failed.length > 0) {
+              console.error('[sync] Failed updates:', data.failed)
+            }
+
+            // Mark successfully updated entries as synced
+            const updatedIds: number[] = data.updated.map((u: { id: number }) => u.id)
+            if (updatedIds.length > 0) {
+              markAsSynced(updatedIds)
+            }
           }
         }
       }
@@ -365,6 +481,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
         failed: totalFailed,
         duplicatesSkipped: totalDuplicatesSkipped,
         deleted: totalDeleted,
+        updated: totalUpdated,
         tagsUpserted: totalTagsUpserted,
         durationMs,
         error: syncError,
@@ -385,6 +502,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
         failed: totalFailed,
         duplicatesSkipped: totalDuplicatesSkipped,
         deleted: totalDeleted,
+        updated: totalUpdated,
         tagsUpserted: totalTagsUpserted,
         durationMs,
         error: err instanceof Error ? err.message : String(err),
