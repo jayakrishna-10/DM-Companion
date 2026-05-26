@@ -81,22 +81,22 @@ export function Profiles() {
   )
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-neutral-950">
       <div className="px-4 pt-4 pb-2 space-y-3">
         {/* Search */}
         <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search objects..."
-            className="w-full h-10 pl-9 pr-9 rounded-xl bg-surface-2 border border-border-subtle text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors"
+            className="w-full h-10 pl-9 pr-9 rounded-xl bg-neutral-900/60 border border-neutral-800/50 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20 transition-colors"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300"
             >
               <X size={16} />
             </button>
@@ -105,7 +105,7 @@ export function Profiles() {
 
         {/* Summary */}
         <div className="flex items-center justify-between">
-          <p className="text-xs text-text-muted">
+          <p className="text-[10px] text-neutral-500">
             {totalObjects} object{totalObjects !== 1 ? 's' : ''} across {filtered.length} type{filtered.length !== 1 ? 's' : ''}
           </p>
         </div>
@@ -115,8 +115,8 @@ export function Profiles() {
       <div className="flex-1 overflow-y-auto px-4 pb-24">
         {filtered.length === 0 ? (
           <div className="py-16 text-center">
-            <p className="text-text-muted text-base">No objects found</p>
-            <p className="text-text-muted text-sm mt-1">
+            <p className="text-neutral-500 text-base">No objects found</p>
+            <p className="text-neutral-500 text-sm mt-1">
               {searchQuery ? 'Try a different search term' : 'Add entries with objects to see them here'}
             </p>
           </div>
@@ -177,22 +177,22 @@ function ObjectTypeSection({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
-      className="glass rounded-xl overflow-hidden"
+      className="bg-neutral-900/60 border border-neutral-800/50 rounded-xl overflow-hidden"
     >
       {/* Type header */}
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-2/50 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-neutral-800/60 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
-            <span className="text-sm font-bold text-accent">
+          <div className="w-8 h-8 rounded-lg bg-teal-500/10 flex items-center justify-center">
+            <span className="text-sm font-bold text-teal-400">
               {typeGroup.type.charAt(0)}
             </span>
           </div>
           <div className="text-left">
-            <h3 className="text-sm font-semibold text-text-primary">{typeGroup.type}</h3>
-            <p className="text-[11px] text-text-muted">
+            <h3 className="text-sm font-semibold text-neutral-200">{typeGroup.type}</h3>
+            <p className="text-[10px] text-neutral-500">
               {typeGroup.groups.length} group{typeGroup.groups.length !== 1 ? 's' : ''} · {totalEntries} entries
             </p>
           </div>
@@ -201,7 +201,7 @@ function ObjectTypeSection({
           animate={{ rotate: expanded ? 90 : 0 }}
           transition={{ type: 'spring', stiffness: 300, damping: 25 }}
         >
-          <ChevronRight size={18} className="text-text-muted" />
+          <ChevronRight size={18} className="text-neutral-500" />
         </motion.div>
       </button>
 
@@ -251,7 +251,7 @@ function ObjectGroupCard({
 }) {
   return (
     <div>
-      <h4 className="text-[11px] font-semibold text-text-muted uppercase tracking-wider px-1 mb-1.5">
+      <h4 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider px-1 mb-1.5">
         {groupName}
       </h4>
       <div className="grid grid-cols-2 gap-2">
@@ -286,13 +286,13 @@ function ObjectCard({
     <motion.button
       layout
       onClick={onClick}
-      className="relative text-left p-3 rounded-lg bg-surface hover:bg-surface-2 border border-border-subtle hover:border-border transition-all duration-150 active:scale-[0.98] group"
+      className="relative text-left p-3 rounded-lg bg-neutral-900/60 border border-neutral-800/50 hover:border-neutral-700 transition-all duration-150 active:scale-[0.98] group"
     >
-      <h5 className="text-sm font-semibold text-text-primary truncate mb-1">
+      <h5 className="text-sm font-semibold text-neutral-200 truncate mb-1">
         {object.object}
       </h5>
       <div className="flex items-center gap-1.5">
-        <span className="text-[11px] text-text-muted">
+        <span className="text-[10px] text-neutral-500">
           {object.entryCount} entr{object.entryCount !== 1 ? 'ies' : 'y'}
         </span>
       </div>
@@ -316,7 +316,7 @@ function ObjectCard({
       {/* Chevron indicator */}
       <ChevronRight
         size={14}
-        className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 opacity-0 group-hover:opacity-100 transition-opacity"
       />
     </motion.button>
   )

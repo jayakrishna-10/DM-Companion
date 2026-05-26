@@ -222,9 +222,9 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 p-4">
+    <form onSubmit={handleSubmit} className="space-y-4 p-4 bg-neutral-950 min-h-screen">
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Note Type</label>
+        <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Note Type</label>
         <SegmentedControl
           value={noteType}
           onChange={setNoteType}
@@ -240,38 +240,38 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               onClick={applyNoteTypeSuggestion}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-accent/10 border border-accent/20 text-xs hover:bg-accent/20 transition-colors w-full text-left"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-teal-500/10 border border-teal-500/20 text-xs hover:bg-teal-500/20 transition-colors w-full text-left"
             >
-              <Sparkles size={12} className="text-accent shrink-0" />
-              <span className="text-text-muted">Detected:</span>
+              <Sparkles size={12} className="text-teal-400 shrink-0" />
+              <span className="text-neutral-400">Detected:</span>
               <span
                 className="font-semibold"
                 style={{ color: getNoteTypeColor(suggestions.noteType!) }}
               >
                 {suggestions.noteType}
               </span>
-              <span className="text-text-muted ml-auto">tap to apply</span>
+              <span className="text-neutral-400 ml-auto">tap to apply</span>
             </motion.button>
           )}
         </AnimatePresence>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Equipment</label>
+        <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Equipment</label>
         <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search equipment (P2-4, R5-C...)"
-            className="w-full h-10 pl-9 pr-3 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
+            className="w-full h-10 pl-9 pr-3 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-sm focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20 transition-all"
           />
           {object && !searchQuery && (
             <button
               type="button"
               onClick={() => { setObject(''); setObjectGroup(''); setObjectType('') }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary text-xs"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 text-xs"
             >
               ✕
             </button>
@@ -292,11 +292,11 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
                   key={obj.object}
                   type="button"
                   onClick={() => applyObjectSuggestion(obj)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-accent/10 border border-accent/20 text-xs hover:bg-accent/20 transition-colors"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-teal-500/10 border border-teal-500/20 text-xs hover:bg-teal-500/20 transition-colors"
                 >
-                  <Sparkles size={10} className="text-accent" />
-                  <span className="text-accent-light font-medium">{obj.object}</span>
-                  <span className="text-text-muted">{obj.objectGroup}</span>
+                  <Sparkles size={10} className="text-teal-400" />
+                  <span className="text-teal-400 font-medium">{obj.object}</span>
+                  <span className="text-neutral-400">{obj.objectGroup}</span>
                 </button>
               ))}
             </motion.div>
@@ -309,17 +309,17 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
-              className="rounded-lg border border-border-subtle bg-surface overflow-hidden"
+              className="rounded-lg border border-neutral-800/50 bg-neutral-900/60 overflow-hidden"
             >
               {searchResults.map((obj, i) => (
                 <button
                   key={`${obj.objectGroup}-${obj.object}-${i}`}
                   type="button"
                   onClick={() => handleObjectSelect(obj)}
-                  className="w-full text-left px-3 py-2 hover:bg-surface-2 transition-colors border-b border-border-subtle last:border-0"
+                  className="w-full text-left px-3 py-2 hover:bg-neutral-800/40 transition-colors border-b border-neutral-800/50 last:border-0"
                 >
-                  <span className="text-sm text-text-primary font-medium">{obj.object}</span>
-                  <span className="text-xs text-text-muted ml-2">{obj.objectGroup} · {obj.objectType}</span>
+                  <span className="text-sm text-neutral-200 font-medium">{obj.object}</span>
+                  <span className="text-xs text-neutral-400 ml-2">{obj.objectGroup} · {obj.objectType}</span>
                 </button>
               ))}
             </motion.div>
@@ -327,16 +327,16 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
         </AnimatePresence>
 
         {object && !searchQuery && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/10 border border-accent/20">
-            <span className="text-sm text-accent-light font-medium">{object}</span>
-            <span className="text-xs text-text-muted">{objectGroup} · {objectType}</span>
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-teal-500/10 border border-teal-500/20">
+            <span className="text-sm text-teal-400 font-medium">{object}</span>
+            <span className="text-xs text-neutral-400">{objectGroup} · {objectType}</span>
           </div>
         )}
 
         <button
           type="button"
           onClick={() => setShowDropdowns(!showDropdowns)}
-          className="flex items-center gap-1 text-xs text-text-muted hover:text-text-secondary transition-colors"
+          className="flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
         >
           {showDropdowns ? '▼' : '►'} Or select by category
         </button>
@@ -372,14 +372,14 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
                       if (e.key === 'Escape') { setShowAddObjectType(false); setNewObjectTypeName('') }
                     }}
                     placeholder="New object type..."
-                    className="flex-1 h-9 px-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+                    className="flex-1 h-9 px-2.5 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
                     autoFocus
                   />
                   <button
                     type="button"
                     onClick={handleAddObjectType}
                     disabled={!newObjectTypeName.trim()}
-                    className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white text-xs disabled:opacity-50 transition-opacity"
+                    className="h-9 w-9 flex items-center justify-center rounded-lg bg-teal-500 text-white text-xs disabled:opacity-50 transition-opacity"
                   >
                     <Check size={14} />
                   </button>
@@ -410,14 +410,14 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
                           if (e.key === 'Escape') { setShowAddObjectGroup(false); setNewObjectGroupName('') }
                         }}
                         placeholder="New object group..."
-                        className="flex-1 h-9 px-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+                        className="flex-1 h-9 px-2.5 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
                         autoFocus
                       />
                       <button
                         type="button"
                         onClick={handleAddObjectGroup}
                         disabled={!newObjectGroupName.trim()}
-                        className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white text-xs disabled:opacity-50 transition-opacity"
+                        className="h-9 w-9 flex items-center justify-center rounded-lg bg-teal-500 text-white text-xs disabled:opacity-50 transition-opacity"
                       >
                         <Check size={14} />
                       </button>
@@ -450,14 +450,14 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
                           if (e.key === 'Escape') { setShowAddObject(false); setNewObjectName('') }
                         }}
                         placeholder="New object name..."
-                        className="flex-1 h-9 px-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+                        className="flex-1 h-9 px-2.5 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
                         autoFocus
                       />
                       <button
                         type="button"
                         onClick={handleAddObject}
                         disabled={!newObjectName.trim()}
-                        className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white text-xs disabled:opacity-50 transition-opacity"
+                        className="h-9 w-9 flex items-center justify-center rounded-lg bg-teal-500 text-white text-xs disabled:opacity-50 transition-opacity"
                       >
                         <Check size={14} />
                       </button>
@@ -510,14 +510,14 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
                   if (e.key === 'Escape') { setShowAddSource(false); setNewSourceName('') }
                 }}
                 placeholder="New source name..."
-                className="flex-1 h-9 px-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+                className="flex-1 h-9 px-2.5 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
                 autoFocus
               />
               <button
                 type="button"
                 onClick={handleAddSource}
                 disabled={!newSourceName.trim()}
-                className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white text-xs disabled:opacity-50 transition-opacity"
+                className="h-9 w-9 flex items-center justify-center rounded-lg bg-teal-500 text-white text-xs disabled:opacity-50 transition-opacity"
               >
                 <Check size={14} />
               </button>

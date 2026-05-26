@@ -1,5 +1,5 @@
 import type { LogEntry } from '@/types'
-import { Badge } from '@/components/ui/Badge'
+import { getNoteTypeColor } from '@/types'
 import { Pencil, Trash2, ExternalLink, Copy } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -41,31 +41,37 @@ export function EntryDetailSheet({ entry, isOpen, onClose, onEdit, onDelete, onD
   return (
     <Sheet isOpen={isOpen} onClose={onClose} title="Entry Details">
       <div className="space-y-4">
-        <div className="flex items-start gap-2">
-          <Badge type={entry.noteType} size="md" />
+        <div className="flex items-center gap-2">
+          <span
+            className="text-[10px] font-semibold px-2 py-0.5 rounded-md border border-neutral-800 bg-neutral-800/80"
+            style={{ color: getNoteTypeColor(entry.noteType) }}
+          >
+            {entry.noteType}
+          </span>
+          <span className="text-[10px] font-mono text-neutral-500 ml-auto">
+            {entry.date}
+          </span>
         </div>
 
-        <p className="text-base text-text-primary leading-relaxed">{entry.note}</p>
+        <p className="text-[13px] text-neutral-200 leading-relaxed">{entry.note}</p>
 
-        <div className="space-y-2 py-3 border-t border-border-subtle">
+        <div className="space-y-2 py-3 border-t border-neutral-800/50">
           {[
             { label: 'Object', value: entry.object, clickable: !!entry.object },
             { label: 'Group', value: entry.objectGroup },
             { label: 'Type', value: entry.objectType },
-            { label: 'Date', value: entry.date },
-            { label: 'Source', value: entry.source },
           ].filter(f => f.value).map(f => (
-            <div key={f.label} className="flex justify-between text-sm">
-              <span className="text-text-muted">{f.label}</span>
+            <div key={f.label} className="flex justify-between text-[11px]">
+              <span className="text-neutral-500">{f.label}</span>
               {f.clickable ? (
                 <button
                   onClick={handleObjectClick}
-                  className="text-accent-light hover:text-accent font-medium transition-colors"
+                  className="text-teal-400 hover:text-teal-300 font-medium transition-colors"
                 >
                   {f.value}
                 </button>
               ) : (
-                <span className="text-text-primary font-medium">{f.value}</span>
+                <span className="text-neutral-200 font-medium">{f.value}</span>
               )}
             </div>
           ))}
@@ -76,7 +82,7 @@ export function EntryDetailSheet({ entry, isOpen, onClose, onEdit, onDelete, onD
             href={`https://notion.so/${entry.notionPageId.replace(/-/g, '')}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-xs text-accent hover:text-accent-light"
+            className="flex items-center gap-1.5 text-[11px] text-teal-400 hover:text-teal-300"
           >
             <ExternalLink size={12} />
             View in Notion

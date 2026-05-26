@@ -65,13 +65,13 @@ export function Logs() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-neutral-950">
       <div className="px-4 pt-4 pb-24 space-y-6">
         {/* ── Header ── */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Database size={20} className="text-accent" />
-            <h1 className="text-lg font-bold text-text-primary">Logs</h1>
+            <Database size={20} className="text-teal-400" />
+            <h1 className="text-lg font-bold text-neutral-200">Logs</h1>
           </div>
           <div className="flex items-center gap-2">
             <Button size="sm" variant="ghost" onClick={handleRefresh}>
@@ -91,7 +91,7 @@ export function Logs() {
 
         {/* ── Section 1: Database Statistics ── */}
         <section>
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-text-secondary mb-3">
+          <h2 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">
             Database Statistics
           </h2>
           <div className="grid grid-cols-2 gap-2">
@@ -117,14 +117,14 @@ export function Logs() {
 
         {/* ── Section 2: Sync History ── */}
         <section>
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-text-secondary mb-3">
+          <h2 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">
             Sync History
           </h2>
           {syncLogs.length === 0 ? (
             <div className="text-center py-12">
-              <Clock size={32} className="mx-auto text-text-muted/40 mb-2" />
-              <p className="text-sm text-text-muted">No sync logs yet</p>
-              <p className="text-xs text-text-muted/60 mt-1">
+              <Clock size={32} className="mx-auto text-neutral-500/40 mb-2" />
+              <p className="text-sm text-neutral-500">No sync logs yet</p>
+              <p className="text-xs text-neutral-500/60 mt-1">
                 Sync logs appear after a Notion sync completes.
               </p>
             </div>
@@ -155,11 +155,11 @@ function StatCard({
   sub?: string
 }) {
   return (
-    <div className="glass rounded-xl p-3">
-      <span className="text-xs text-text-muted block mb-0.5">{label}</span>
-      <p className="text-xl font-bold text-text-primary">{value}</p>
+    <div className="bg-neutral-900/60 border border-neutral-800/50 rounded-xl p-3">
+      <span className="text-[10px] text-neutral-500 block mb-0.5">{label}</span>
+      <p className="text-xl font-bold text-neutral-200">{value}</p>
       {sub && (
-        <p className="text-[10px] text-text-muted/70 mt-0.5 leading-tight">{sub}</p>
+        <p className="text-[9px] text-neutral-500 mt-0.5 leading-tight">{sub}</p>
       )}
     </div>
   )
@@ -176,19 +176,19 @@ function SyncLogCard({ log }: { log: SyncLog }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-      className="rounded-xl border border-border-subtle bg-surface p-3 space-y-2"
+      className="bg-neutral-900/60 border border-neutral-800/50 rounded-xl p-3 space-y-2"
     >
       {/* Top row: timestamp + status + duration */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <Clock size={14} className="text-text-muted flex-shrink-0" />
-          <span className="text-xs text-text-secondary whitespace-nowrap">
+          <Clock size={14} className="text-neutral-400 flex-shrink-0" />
+          <span className="text-xs text-neutral-400 whitespace-nowrap">
             {formatTimestamp(log.timestamp)}
           </span>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span
-            className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${
+            className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${
               isError
                 ? 'bg-complaint/10 text-complaint-light'
                 : 'bg-resolved/10 text-resolved-light'
@@ -201,7 +201,7 @@ function SyncLogCard({ log }: { log: SyncLog }) {
             )}
             {isError ? 'Error' : 'Success'}
           </span>
-          <span className="text-[11px] text-text-muted flex items-center gap-1">
+          <span className="text-[11px] text-neutral-400 flex items-center gap-1">
             <ArrowUpDown size={11} />
             {formatDuration(log.durationMs)}
           </span>
@@ -209,13 +209,13 @@ function SyncLogCard({ log }: { log: SyncLog }) {
       </div>
 
       {/* Metrics row */}
-      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-text-muted">
-        <span>Pulled: <span className="text-text-secondary font-medium">{log.pulled}</span></span>
-        <span>Pushed: <span className="text-text-secondary font-medium">{log.pushed}</span></span>
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-neutral-400">
+        <span>Pulled: <span className="text-neutral-300 font-medium">{log.pulled}</span></span>
+        <span>Pushed: <span className="text-neutral-300 font-medium">{log.pushed}</span></span>
         <span>Failed: <span className="text-complaint-light font-medium">{log.failed}</span></span>
-        <span>Dups skipped: <span className="text-text-secondary font-medium">{log.duplicatesSkipped}</span></span>
-        <span>Deleted: <span className="text-text-secondary font-medium">{log.deleted}</span></span>
-        <span>Tags: <span className="text-text-secondary font-medium">{log.tagsUpserted}</span></span>
+        <span>Dups skipped: <span className="text-neutral-300 font-medium">{log.duplicatesSkipped}</span></span>
+        <span>Deleted: <span className="text-neutral-300 font-medium">{log.deleted}</span></span>
+        <span>Tags: <span className="text-neutral-300 font-medium">{log.tagsUpserted}</span></span>
       </div>
 
       {/* Error message */}

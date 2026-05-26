@@ -72,7 +72,7 @@ export function SegmentedControl({ value, onChange, noteTypes, onAddType }: Segm
       <div className="flex items-center gap-1.5">
         <div
           ref={containerRef}
-          className="relative flex bg-surface-2 rounded-xl p-1 border border-border-subtle flex-1"
+          className="relative flex bg-neutral-900/60 border-neutral-800/50 rounded-xl p-1 flex-1"
           style={{ scrollbarWidth: 'none' }}
         >
           {noteTypes.map((type) => (
@@ -101,7 +101,7 @@ export function SegmentedControl({ value, onChange, noteTypes, onAddType }: Segm
         {onAddType && (
           <button
             onClick={() => setShowInput(!showInput)}
-            className="flex-shrink-0 w-7 h-7 rounded-full bg-surface-2 border border-border-subtle flex items-center justify-center text-xs text-text-secondary hover:text-text-primary hover:bg-surface-3 transition-colors"
+            className="flex-shrink-0 w-7 h-7 rounded-full bg-neutral-800/80 border-neutral-800 text-neutral-400 flex items-center justify-center text-xs hover:text-neutral-200 transition-colors"
             title="Add note type"
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -120,12 +120,12 @@ export function SegmentedControl({ value, onChange, noteTypes, onAddType }: Segm
             onChange={e => setNewTypeName(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="New note type name..."
-            className="flex-1 h-8 px-3 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+            className="flex-1 h-8 px-3 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
           />
           <button
             onClick={handleAddType}
             disabled={!newTypeName.trim()}
-            className="h-8 px-3 rounded-lg bg-accent text-white text-xs font-semibold disabled:opacity-40 hover:bg-accent/90 transition-colors"
+            className="h-8 px-3 rounded-lg bg-teal-500 text-white text-xs font-semibold disabled:opacity-40 hover:bg-teal-400 transition-colors"
           >
             Add
           </button>

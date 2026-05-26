@@ -8,11 +8,10 @@ interface BadgeProps {
 export function Badge({ type, size = 'sm' }: BadgeProps) {
   return (
     <span
-      className={`inline-flex items-center font-semibold rounded-md whitespace-nowrap ${
-        size === 'sm' ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-1'
+      className={`inline-flex items-center font-semibold whitespace-nowrap ${
+        size === 'sm' ? 'text-[9px] px-1.5 py-0.5 rounded-md border border-neutral-800 bg-neutral-800/80' : 'text-[10px] px-2 py-0.5 rounded-md border border-neutral-800 bg-neutral-800/80'
       }`}
       style={{
-        backgroundColor: getNoteTypeBg(type),
         color: getNoteTypeColor(type),
       }}
     >

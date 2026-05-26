@@ -105,15 +105,15 @@ export function Settings() {
   }
 
   return (
-    <div className="p-4 space-y-6 pb-24">
+    <div className="p-4 space-y-6 pb-24 bg-neutral-950">
       <section className="space-y-4">
         <div className="flex items-center gap-2">
-          <Database size={18} className="text-accent" />
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">Notion Integration</h2>
+          <Database size={18} className="text-teal-400" />
+          <h2 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">Notion Integration</h2>
         </div>
 
         <div className="space-y-3">
-          <p className="text-xs text-text-muted">
+          <p className="text-[11px] text-neutral-400">
             Notion API key and Database ID are configured server-side via environment variables.
           </p>
 
@@ -124,7 +124,7 @@ export function Settings() {
           </div>
 
           {testResult && (
-            <div className={`flex items-center gap-2 text-xs font-medium ${testResult === 'success' ? 'text-resolved-light' : 'text-complaint-light'}`}>
+            <div className={`flex items-center gap-2 text-[11px] font-medium ${testResult === 'success' ? 'text-resolved-light' : 'text-complaint-light'}`}>
               {testResult === 'success' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
               {testResult === 'success' ? 'Connected successfully' : 'Connection failed'}
             </div>
@@ -134,13 +134,13 @@ export function Settings() {
 
       <section className="space-y-4">
         <div className="flex items-center gap-2">
-          <RefreshCw size={18} className="text-accent" />
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">Sync</h2>
+          <RefreshCw size={18} className="text-teal-400" />
+          <h2 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">Sync</h2>
         </div>
 
         <div className="space-y-3">
           {lastSyncTime && (
-            <p className="text-xs text-text-muted">Last synced: {lastSyncTime}</p>
+            <p className="text-[11px] text-neutral-400">Last synced: {lastSyncTime}</p>
           )}
 
           <div className="flex gap-2">
@@ -153,7 +153,7 @@ export function Settings() {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">Data Management</h2>
+        <h2 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">Data Management</h2>
 
         <div className="space-y-2">
           <Button size="sm" variant="secondary" onClick={handleExport} className="w-full justify-start">
@@ -168,11 +168,11 @@ export function Settings() {
         </div>
       </section>
 
-      <section className="pt-4 border-t border-border-subtle">
-        <p className="text-xs text-text-muted text-center">
+      <section className="pt-4 border-t border-neutral-800/50">
+        <p className="text-[10px] text-neutral-500 text-center">
           DM Companion v1.0.0
         </p>
-        <p className="text-[10px] text-text-muted text-center mt-1">
+        <p className="text-[10px] text-neutral-500 text-center mt-1">
           Made for CWTP operators
         </p>
       </section>

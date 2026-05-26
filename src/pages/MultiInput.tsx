@@ -105,13 +105,13 @@ export function MultiInput() {
   // Input step
   if (step === 'input') {
     return (
-      <div className="p-4 space-y-4 pb-24">
+      <div className="p-4 space-y-4 pb-24 bg-neutral-950 min-h-screen">
         <div className="flex items-center gap-2 mb-2">
-          <ClipboardList size={20} className="text-accent" />
-          <h2 className="text-lg font-bold text-text-primary">Multi Entry</h2>
+          <ClipboardList size={20} className="text-teal-400" />
+          <h2 className="text-lg font-bold text-neutral-200">Multi Entry</h2>
         </div>
 
-        <p className="text-xs text-text-muted">
+        <p className="text-xs text-neutral-400">
           Paste a list of observations, activities, or complaints. Each line becomes a separate entry. Auto-tagging will suggest equipment and note types.
         </p>
 
@@ -146,15 +146,15 @@ export function MultiInput() {
                     if (e.key === 'Enter') handleAddSource()
                     if (e.key === 'Escape') { setShowAddSource(false); setNewSourceName('') }
                   }}
-                  placeholder="New source name..."
-                  className="flex-1 h-9 px-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  onClick={handleAddSource}
-                  disabled={!newSourceName.trim()}
-                  className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white text-xs disabled:opacity-50 transition-opacity"
+                   placeholder="New source name..."
+                   className="flex-1 h-9 px-2.5 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
+                   autoFocus
+                 />
+                 <button
+                   type="button"
+                   onClick={handleAddSource}
+                   disabled={!newSourceName.trim()}
+                   className="h-9 w-9 flex items-center justify-center rounded-lg bg-teal-500 text-white text-xs disabled:opacity-50 transition-opacity"
                 >
                   <Check size={14} />
                 </button>
@@ -164,17 +164,17 @@ export function MultiInput() {
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+          <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">
             Paste your list
           </label>
           <textarea
             value={rawText}
             onChange={e => setRawText(e.target.value)}
-            placeholder={`â€¢ R5C resin removed\nâ€¢ P2-4 discharge valves are closed\nâ€¢ HCl tanker unloaded\nâ€¢ NRV is not working for P4-4\n1) P8B pump servicing going\n2) R7-C framework going`}
-            className="w-full px-3 py-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all resize-none min-h-[200px]"
+            placeholder={`• R5C resin removed\n• P2-4 discharge valves are closed\n• HCl tanker unloaded\n• NRV is not working for P4-4\n1) P8B pump servicing going\n2) R7-C framework going`}
+            className="w-full px-3 py-2.5 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-sm focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20 transition-all resize-none min-h-[200px]"
             rows={8}
           />
-          <p className="text-[10px] text-text-muted">
+          <p className="text-[10px] text-neutral-400">
             Supports bullet points (â€¢, -, *), numbered items (1., 2.), or plain newlines
           </p>
         </div>
@@ -195,17 +195,17 @@ export function MultiInput() {
 
   // Review step
   return (
-    <div className="p-4 space-y-3 pb-24">
+    <div className="p-4 space-y-3 pb-24 bg-neutral-950 min-h-screen">
       <div className="flex items-center justify-between mb-1">
         <button
           onClick={() => setStep('input')}
-          className="flex items-center gap-1 text-sm text-text-muted hover:text-text-primary transition-colors"
+          className="flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-300 transition-colors"
         >
           <ArrowLeft size={16} />
           Back
         </button>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-text-muted">{entries.length} entries</span>
+          <span className="text-xs text-neutral-500">{entries.length} entries</span>
           <Button variant="primary" size="sm" onClick={handleSubmitAll}>
             <ListChecks size={14} />
             Submit All
@@ -231,7 +231,7 @@ export function MultiInput() {
       </div>
 
       {entries.length === 0 && (
-        <div className="text-center py-8 text-text-muted text-sm">
+        <div className="text-center py-8 text-neutral-500 text-sm">
           No entries. Go back and paste your list.
         </div>
       )}
@@ -464,7 +464,7 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -100 }}
-      className="rounded-xl border border-border-subtle bg-surface overflow-hidden"
+      className="rounded-xl border border-neutral-800/50 bg-neutral-900/60 overflow-hidden"
     >
       {/* Collapsed header */}
       <div className="px-3 py-2.5 flex items-start gap-2">
@@ -478,25 +478,25 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
               {entry.noteType}
             </span>
             {entry.object && (
-              <span className="text-[10px] text-text-muted">
+              <span className="text-[10px] text-neutral-400">
                 Â· {entry.object}
               </span>
             )}
           </div>
-          <p className="text-sm text-text-primary leading-snug line-clamp-2">
+          <p className="text-sm text-neutral-200 leading-snug line-clamp-2">
             {entry.note}
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={() => setIsEditing(!isEditing)}
-            className="p-1.5 rounded-lg hover:bg-surface-2 text-text-muted hover:text-text-primary transition-colors"
+            className="p-1.5 rounded-lg hover:bg-neutral-800/60 text-neutral-500 hover:text-neutral-300 transition-colors"
           >
             {isEditing ? <Check size={14} /> : <Pencil size={14} />}
           </button>
           <button
             onClick={onRemove}
-            className="p-1.5 rounded-lg hover:bg-surface-2 text-text-muted hover:text-complaint transition-colors"
+            className="p-1.5 rounded-lg hover:bg-neutral-800/60 text-neutral-500 hover:text-neutral-300 transition-colors"
           >
             <X size={14} />
           </button>
@@ -512,10 +512,10 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="px-3 pb-3 space-y-3 border-t border-border-subtle pt-3">
+            <div className="px-3 pb-3 space-y-3 border-t border-neutral-800/50 pt-3">
               {/* Note Type */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Note Type</label>
+                <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Note Type</label>
                 <div className="flex flex-wrap gap-1.5">
                   {noteTypes.map(type => (
                     <button
@@ -534,7 +534,7 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
                   <button
                     type="button"
                     onClick={() => setShowAddNoteType(true)}
-                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-dashed border-text-muted text-text-muted hover:text-text-primary hover:border-text-primary transition-all text-xs"
+                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-dashed border-neutral-700 text-neutral-500 hover:text-neutral-300 hover:border-neutral-600 transition-all text-xs"
                   >
                     <Plus size={14} />
                   </button>
@@ -558,14 +558,14 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
                           if (e.key === 'Escape') { setShowAddNoteType(false); setNewNoteTypeName('') }
                         }}
                         placeholder="New note type..."
-                        className="flex-1 h-8 px-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+                        className="flex-1 h-8 px-2.5 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
                         autoFocus
                       />
                       <button
                         type="button"
                         onClick={handleAddNoteType}
                         disabled={!newNoteTypeName.trim()}
-                        className="h-8 w-8 flex items-center justify-center rounded-lg bg-accent text-white text-xs disabled:opacity-50 transition-opacity"
+                        className="h-8 w-8 flex items-center justify-center rounded-lg bg-teal-500 text-white text-xs disabled:opacity-50 transition-opacity"
                       >
                         <Check size={14} />
                       </button>
@@ -582,17 +582,17 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                       onClick={applyNoteTypeSuggestion}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-accent/10 border border-accent/20 text-xs hover:bg-accent/20 transition-colors w-full text-left"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-teal-500/10 border border-teal-500/20 text-xs hover:bg-teal-500/20 transition-colors w-full text-left"
                     >
-                      <Sparkles size={12} className="text-accent shrink-0" />
-                      <span className="text-text-muted">Detected:</span>
+                      <Sparkles size={12} className="text-teal-400 shrink-0" />
+                      <span className="text-neutral-400">Detected:</span>
                       <span
                         className="font-semibold"
                         style={{ color: getNoteTypeColor(suggestions.noteType!) }}
                       >
                         {suggestions.noteType}
                       </span>
-                      <span className="text-text-muted ml-auto">tap to apply</span>
+                      <span className="text-neutral-400 ml-auto">tap to apply</span>
                     </motion.button>
                   )}
                 </AnimatePresence>
@@ -600,31 +600,31 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
 
               {/* Note */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Note</label>
+                <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Note</label>
                 <textarea
                   value={localNote}
                   onChange={e => handleNoteChange(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-border-subtle text-text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 resize-none min-h-[60px]"
+                  className="w-full px-3 py-2 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 text-sm focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20 resize-none min-h-[60px]"
                   rows={2}
                 />
               </div>
 
               {/* Equipment search + suggestions */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Equipment</label>
+                <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Equipment</label>
                 <div className="relative">
                   <input
                     type="text"
                     value={searchQuery || entry.object}
                     onChange={e => setSearchQuery(e.target.value)}
                     placeholder="Search equipment..."
-                    className="w-full h-9 px-3 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+                    className="w-full h-9 px-3 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-sm focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
                   />
                   {entry.object && !searchQuery && (
                     <button
                       type="button"
                       onClick={() => { onUpdate({ object: '', objectGroup: '', objectType: '' }); setSearchQuery('') }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary text-xs"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 text-xs"
                     >
                       âœ•
                     </button>
@@ -645,11 +645,11 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
                           key={obj.object}
                           type="button"
                           onClick={() => applyObjectSuggestion(obj)}
-                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-accent/10 border border-accent/20 text-xs hover:bg-accent/20 transition-colors"
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-teal-500/10 border border-teal-500/20 text-xs hover:bg-teal-500/20 transition-colors"
                         >
-                          <Sparkles size={10} className="text-accent" />
-                          <span className="text-accent-light font-medium">{obj.object}</span>
-                          <span className="text-text-muted">{obj.objectGroup}</span>
+                          <Sparkles size={10} className="text-teal-400" />
+                          <span className="text-teal-400 font-medium">{obj.object}</span>
+                          <span className="text-neutral-400">{obj.objectGroup}</span>
                         </button>
                       ))}
                     </motion.div>
@@ -657,30 +657,30 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
                 </AnimatePresence>
 
                 {searchQuery && searchResults.length > 0 && (
-                  <div className="rounded-lg border border-border-subtle bg-surface overflow-hidden">
+                  <div className="rounded-lg border border-neutral-800/50 bg-neutral-900/60 overflow-hidden">
                     {searchResults.map((obj, i) => (
                       <button
                         key={`${obj.objectGroup}-${obj.object}-${i}`}
                         type="button"
                         onClick={() => handleObjectSelect(obj)}
-                        className="w-full text-left px-3 py-1.5 hover:bg-surface-2 transition-colors border-b border-border-subtle last:border-0"
+                        className="w-full text-left px-3 py-1.5 hover:bg-neutral-800/40 transition-colors border-b border-neutral-800/50 last:border-0"
                       >
-                        <span className="text-sm text-text-primary font-medium">{obj.object}</span>
-                        <span className="text-xs text-text-muted ml-2">{obj.objectGroup} Â· {obj.objectType}</span>
+                        <span className="text-sm text-neutral-200 font-medium">{obj.object}</span>
+                        <span className="text-xs text-neutral-400 ml-2">{obj.objectGroup} Â· {obj.objectType}</span>
                       </button>
                     ))}
                   </div>
                 )}
                 {entry.object && !searchQuery && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-accent/10 border border-accent/20">
-                    <span className="text-sm text-accent-light font-medium">{entry.object}</span>
-                    <span className="text-xs text-text-muted">{entry.objectGroup} Â· {entry.objectType}</span>
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-teal-500/10 border border-teal-500/20">
+                    <span className="text-sm text-teal-400 font-medium">{entry.object}</span>
+                    <span className="text-xs text-neutral-400">{entry.objectGroup} Â· {entry.objectType}</span>
                   </div>
                 )}
                 <button
                   type="button"
                   onClick={() => setShowDropdowns(!showDropdowns)}
-                  className="flex items-center gap-1 text-xs text-text-muted hover:text-text-secondary transition-colors"
+                  className="flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
                 >
                   {showDropdowns ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                   {showDropdowns ? 'Hide' : 'Show'} category selectors
@@ -712,14 +712,14 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
                                 if (e.key === 'Escape') { setShowAddObjectType(false); setNewObjectTypeName('') }
                               }}
                               placeholder="New type name..."
-                              className="flex-1 h-9 px-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+                              className="flex-1 h-9 px-2.5 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
                               autoFocus
                             />
                             <button
                               type="button"
                               onClick={handleAddObjectType}
                               disabled={!newObjectTypeName.trim()}
-                              className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white text-xs disabled:opacity-50 transition-opacity"
+                              className="h-9 w-9 flex items-center justify-center rounded-lg bg-teal-500 text-white text-xs disabled:opacity-50 transition-opacity"
                             >
                               <Check size={14} />
                             </button>
@@ -753,14 +753,14 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
                                   if (e.key === 'Escape') { setShowAddObjectGroup(false); setNewObjectGroupName('') }
                                 }}
                                 placeholder="New group name..."
-                                className="flex-1 h-9 px-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+                                className="flex-1 h-9 px-2.5 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
                                 autoFocus
                               />
                               <button
                                 type="button"
                                 onClick={handleAddObjectGroup}
                                 disabled={!newObjectGroupName.trim()}
-                                className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white text-xs disabled:opacity-50 transition-opacity"
+                                className="h-9 w-9 flex items-center justify-center rounded-lg bg-teal-500 text-white text-xs disabled:opacity-50 transition-opacity"
                               >
                                 <Check size={14} />
                               </button>
@@ -795,14 +795,14 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
                                   if (e.key === 'Escape') { setShowAddObject(false); setNewObjectName('') }
                                 }}
                                 placeholder="New object name..."
-                                className="flex-1 h-9 px-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+                                className="flex-1 h-9 px-2.5 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
                                 autoFocus
                               />
                               <button
                                 type="button"
                                 onClick={handleAddObject}
                                 disabled={!newObjectName.trim()}
-                                className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white text-xs disabled:opacity-50 transition-opacity"
+                                className="h-9 w-9 flex items-center justify-center rounded-lg bg-teal-500 text-white text-xs disabled:opacity-50 transition-opacity"
                               >
                                 <Check size={14} />
                               </button>
@@ -849,14 +849,14 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
                           if (e.key === 'Escape') { setShowAddSource(false); setNewSourceName('') }
                         }}
                         placeholder="New source name..."
-                        className="flex-1 h-9 px-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+                        className="flex-1 h-9 px-2.5 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
                         autoFocus
                       />
                       <button
                         type="button"
                         onClick={handleAddSource}
                         disabled={!newSourceName.trim()}
-                        className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white text-xs disabled:opacity-50 transition-opacity"
+                        className="h-9 w-9 flex items-center justify-center rounded-lg bg-teal-500 text-white text-xs disabled:opacity-50 transition-opacity"
                       >
                         <Check size={14} />
                       </button>

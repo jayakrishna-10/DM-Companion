@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Check } from 'lucide-react'
 import type { LogEntry } from '@/types'
@@ -39,9 +38,6 @@ export function parseSubEntries(note: string): { narrative: string; subs: string
   return { narrative: narrativeLines.join(' ').trim(), subs }
 }
 
-const TRUNCATE_LIMIT = 90
-const TRUNCATE_SLICE = 85
-
 export interface TimelineCardProps {
   entry: LogEntry
   onClick: () => void
@@ -60,15 +56,7 @@ export function TimelineCard({
   showObjectLink,
   onObjectClick,
 }: TimelineCardProps) {
-  const [expanded, setExpanded] = useState(false)
   const { narrative, subs } = parseSubEntries(entry.note)
-
-  const needsTruncation = narrative.length > TRUNCATE_LIMIT
-  const displayText = expanded
-    ? narrative
-    : needsTruncation
-      ? narrative.slice(0, TRUNCATE_SLICE) + '…'
-      : narrative
 
   return (
     <motion.div
@@ -101,38 +89,24 @@ export function TimelineCard({
           </span>
         </div>
 
-        {/* Event title — when no sub-entries, show narrative as title */}
+        {/* Event title — when no sub-entries, show full narrative as title */}
         {subs.length === 0 && (
           <p className="text-xs font-semibold text-neutral-200 leading-snug mb-1">
-            {narrative.length > 50 ? narrative.slice(0, 50) + '…' : narrative}
+            {narrative}
           </p>
         )}
 
-        {/* Narrative body text — when sub-entries exist, show narrative as body */}
-        {subs.length > 0 && (
+        {/* Narrative body text — when sub-entries exist, show full narrative as body */}
+        {subs.length > 0 && narrative && (
           <p className="text-[11px] text-neutral-400 leading-relaxed">
-            {displayText}
-            {needsTruncation && (
-              <span
-                className="text-teal-400 hover:underline font-medium ml-1 cursor-pointer"
-                onClick={(e) => { e.stopPropagation(); setExpanded(!expanded) }}
-              >
-                {expanded ? 'Less' : 'More'}
-              </span>
-            )}
+            {narrative}
           </p>
         )}
 
-        {/* Source / object metadata */}
-        <div className="flex items-center gap-1.5 text-[10px] text-neutral-500 mt-1.5">
-          {entry.source && (
-            <>
-              <span className="font-mono">{entry.source}</span>
-              <span className="text-neutral-700">·</span>
-            </>
-          )}
-          {entry.object && (
-            showObjectLink && onObjectClick ? (
+        {/* Object metadata */}
+        {entry.object && (
+          <div className="flex items-center gap-1.5 text-[10px] text-neutral-500 mt-1.5">
+            {showObjectLink && onObjectClick ? (
               <span
                 className="text-teal-400/80 hover:text-teal-400 font-medium cursor-pointer transition-colors"
                 onClick={(e) => { e.stopPropagation(); onObjectClick(entry.object) }}
@@ -141,15 +115,15 @@ export function TimelineCard({
               </span>
             ) : (
               <span className="text-neutral-300 font-medium">{entry.object}</span>
-            )
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         {/* Nested sub-entries (micro-checklist) */}
         {subs.length > 0 && (
           <div className="mt-2.5 pt-2 border-t border-neutral-800/50">
             <div className="pl-1.5 space-y-1">
-              {subs.slice(0, 3).map((sub, i) => (
+              {subs.map((sub, i) => (
                 <div key={i} className="flex items-start gap-1.5">
                   <Check size={14} className="text-teal-500/60 flex-shrink-0 mt-px" />
                   <span className="text-[10.5px] font-medium text-neutral-300 leading-snug">
@@ -157,11 +131,6 @@ export function TimelineCard({
                   </span>
                 </div>
               ))}
-              {subs.length > 3 && (
-                <span className="text-[9.5px] text-neutral-500 pl-5">
-                  +{subs.length - 3} more
-                </span>
-              )}
             </div>
           </div>
         )}
