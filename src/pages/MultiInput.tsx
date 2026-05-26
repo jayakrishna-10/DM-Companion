@@ -258,7 +258,7 @@ interface EntryCardProps {
   entry: ParsedEntry
   noteTypes: string[]
   sourceTags: string[]
-  addTag: (tag: { name: string; category: 'note_type' | 'source' | 'object_type' | 'object_group'; color?: string }) => void
+  addTag: (tag: { name: string; category: 'note_type' | 'source' | 'object_type' | 'object_group' | 'object'; color?: string }) => void
   onUpdate: (updates: Partial<ParsedEntry>) => void
   onRemove: () => void
   hierarchy: ObjectHierarchy
@@ -277,6 +277,8 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
   const [newObjectTypeName, setNewObjectTypeName] = useState('')
   const [showAddObjectGroup, setShowAddObjectGroup] = useState(false)
   const [newObjectGroupName, setNewObjectGroupName] = useState('')
+  const [showAddObject, setShowAddObject] = useState(false)
+  const [newObjectName, setNewObjectName] = useState('')
 
   const typeOptions = useMemo(() => {
     const options = hierarchy.types.map(t => ({ value: t, label: t }))
@@ -291,7 +293,7 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
     return options
   }, [entry.objectType, hierarchy.groups])
   const objectOptions = entry.objectGroup
-    ? (hierarchy.objects[entry.objectGroup] || []).map(o => ({ value: o.object, label: o.object }))
+    ? [...(hierarchy.objects[entry.objectGroup] || []).map(o => ({ value: o.object, label: o.object })), { value: '__add_new__', label: '+ Add new object...' }]
     : []
 
   const sourceOptions = useMemo(() => {
@@ -422,6 +424,37 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
       setShowAddObjectGroup(false)
       setSearchQuery('')
       toast('Object group added', 'success')
+    }
+  }
+
+  const handleObjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value
+    if (val === '__add_new__') {
+      setShowAddObject(true)
+    } else {
+      onUpdate({ object: val })
+      setShowAddObject(false)
+    }
+  }
+
+  const handleAddObject = () => {
+    const trimmed = newObjectName.trim()
+    if (trimmed && entry.objectType && entry.objectGroup) {
+      addTag({ name: entry.objectType + '|' + entry.objectGroup + '|' + trimmed, category: 'object' })
+      onUpdate({ object: trimmed })
+      setNewObjectName('')
+      setShowAddObject(false)
+      toast('Object added', 'success')
+    }
+  }
+
+  const handleSourceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value
+    if (val === '__add_new__') {
+      setShowAddSource(true)
+    } else {
+      onUpdate({ source: val })
+      setShowAddSource(false)
     }
   }
 
@@ -747,13 +780,46 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
                       </div>
                     )}
                     {entry.objectGroup && (
-                      <Select
-                        label="Object"
-                        options={objectOptions}
-                        placeholder="Select object..."
-                        value={entry.object}
-                        onChange={e => onUpdate({ object: e.target.value })}
-                      />
+                      <div className="space-y-1.5">
+                        <Select
+                          label="Object"
+                          options={objectOptions}
+                          placeholder="Select object..."
+                          value={showAddObject ? '' : entry.object}
+                          onChange={handleObjectChange}
+                        />
+                        <AnimatePresence>
+                          {showAddObject && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="flex items-center gap-1.5 overflow-hidden"
+                            >
+                              <input
+                                type="text"
+                                value={newObjectName}
+                                onChange={e => setNewObjectName(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') handleAddObject()
+                                  if (e.key === 'Escape') { setShowAddObject(false); setNewObjectName('') }
+                                }}
+                                placeholder="New object name..."
+                                className="flex-1 h-9 px-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={handleAddObject}
+                                disabled={!newObjectName.trim()}
+                                className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white text-xs disabled:opacity-50 transition-opacity"
+                              >
+                                <Check size={14} />
+                              </button>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
                     )}
                   </div>
                 )}

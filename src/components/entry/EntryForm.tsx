@@ -34,12 +34,14 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
   const [newObjectTypeName, setNewObjectTypeName] = useState('')
   const [showAddObjectGroup, setShowAddObjectGroup] = useState(false)
   const [newObjectGroupName, setNewObjectGroupName] = useState('')
+  const [showAddObject, setShowAddObject] = useState(false)
+  const [newObjectName, setNewObjectName] = useState('')
 
   const hierarchy = getHierarchy()
 
   const typeOptions = [...hierarchy.types.map(t => ({ value: t, label: t })), { value: '__add_new__', label: '+ Add new type...' }]
   const groupOptions = objectType ? [...(hierarchy.groups[objectType] || []).map(g => ({ value: g, label: g })), { value: '__add_new__', label: '+ Add new group...' }] : []
-  const objectOptions = objectGroup ? (hierarchy.objects[objectGroup] || []).map(o => ({ value: o.object, label: o.object })) : []
+  const objectOptions = objectGroup ? [...(hierarchy.objects[objectGroup] || []).map(o => ({ value: o.object, label: o.object })), { value: '__add_new__', label: '+ Add new object...' }] : []
 
   // Build source options from dynamic sourceTags + add-new option
   const sourceOptions = useMemo(() => {
@@ -124,6 +126,27 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
       setNewObjectGroupName('')
       setShowAddObjectGroup(false)
       toast('Object group added', 'success')
+    }
+  }
+
+  const handleObjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value
+    if (val === '__add_new__') {
+      setShowAddObject(true)
+    } else {
+      setObject(val)
+      setShowAddObject(false)
+    }
+  }
+
+  const handleAddObject = () => {
+    const trimmed = newObjectName.trim()
+    if (trimmed && objectType && objectGroup) {
+      addTag({ name: objectType + '|' + objectGroup + '|' + trimmed, category: 'object' })
+      setObject(trimmed)
+      setNewObjectName('')
+      setShowAddObject(false)
+      toast('Object added', 'success')
     }
   }
 
@@ -403,13 +426,44 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
                 </div>
               )}
               {objectGroup && (
-                <Select
-                  label="Object"
-                  options={objectOptions}
-                  placeholder="Select object..."
-                  value={object}
-                  onChange={e => setObject(e.target.value)}
-                />
+                <div className="space-y-1.5">
+                  <Select
+                    label="Object"
+                    options={objectOptions}
+                    placeholder="Select object..."
+                    value={showAddObject ? '' : object}
+                    onChange={handleObjectChange}
+                  />
+                  {showAddObject && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="flex items-center gap-1.5 overflow-hidden"
+                    >
+                      <input
+                        type="text"
+                        value={newObjectName}
+                        onChange={e => setNewObjectName(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleAddObject()
+                          if (e.key === 'Escape') { setShowAddObject(false); setNewObjectName('') }
+                        }}
+                        placeholder="New object name..."
+                        className="flex-1 h-9 px-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddObject}
+                        disabled={!newObjectName.trim()}
+                        className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white text-xs disabled:opacity-50 transition-opacity"
+                      >
+                        <Check size={14} />
+                      </button>
+                    </motion.div>
+                  )}
+                </div>
               )}
             </motion.div>
           )}

@@ -378,9 +378,32 @@ export function getObjectHierarchy(): { types: string[]; groups: Record<string, 
         "SELECT DISTINCT object, object_group, object_type FROM log_entries WHERE object_group = ? AND object != '' ORDER BY object",
         [group]
       )
-      objects[group] = objResult.length > 0
+      const entryObjects = objResult.length > 0
         ? objResult[0].values.map((r: unknown[]) => ({ object: r[0] as string, objectGroup: r[1] as string, objectType: r[2] as string }))
         : []
+
+      // Get objects from tags table (object category) — stored as "type|group|objectName"
+      const tagObjectsResult = d.exec(
+        "SELECT name FROM tags WHERE category = 'object' AND name LIKE ? ORDER BY sort_order, name",
+        [type + '|' + group + '|%']
+      )
+      const tagObjects = tagObjectsResult.length > 0
+        ? tagObjectsResult[0].values.map((r: unknown[]) => {
+            const parts = (r[0] as string).split('|')
+            return { object: parts[2] || parts[1] || '', objectGroup: group, objectType: type }
+          })
+        : []
+
+      // Merge and deduplicate objects
+      const seen = new Set<string>()
+      const merged: ObjectOption[] = []
+      for (const obj of [...entryObjects, ...tagObjects]) {
+        if (!seen.has(obj.object)) {
+          seen.add(obj.object)
+          merged.push(obj)
+        }
+      }
+      objects[group] = merged.sort((a, b) => a.object.localeCompare(b.object))
     }
   }
 
@@ -557,7 +580,7 @@ export function getSourceTags(): string[] {
   return getTags('source').map(t => t.name)
 }
 
-export function addTag(tag: { name: string; category: 'note_type' | 'source' | 'object_type' | 'object_group'; color?: string; sortOrder?: number }): number {
+export function addTag(tag: { name: string; category: 'note_type' | 'source' | 'object_type' | 'object_group' | 'object'; color?: string; sortOrder?: number }): number {
   const d = getDatabase()
   const color = tag.color || getNoteTypeColor(tag.name)
   d.run(

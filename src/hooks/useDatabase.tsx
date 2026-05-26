@@ -25,7 +25,7 @@ interface DatabaseContextType {
   tags: Tag[]
   noteTypes: string[]
   sourceTags: string[]
-  addTag: (tag: { name: string; category: 'note_type' | 'source' | 'object_type' | 'object_group'; color?: string }) => void
+  addTag: (tag: { name: string; category: 'note_type' | 'source' | 'object_type' | 'object_group' | 'object'; color?: string }) => void
   removeTag: (id: number) => void
   refreshTags: () => void
   // Logs & stats
@@ -150,7 +150,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     return exportAllEntries()
   }, [])
 
-  const addTagFn = useCallback((tag: { name: string; category: 'note_type' | 'source' | 'object_type' | 'object_group'; color?: string }) => {
+  const addTagFn = useCallback((tag: { name: string; category: 'note_type' | 'source' | 'object_type' | 'object_group' | 'object'; color?: string }) => {
     addTag(tag)
     refreshTags()
   }, [refreshTags])
