@@ -133,7 +133,7 @@ export function Profiles() {
                   )}
                   objectCounts={objectCounts}
                   noteTypes={noteTypes}
-                  onObjectClick={(objectName) => navigate(`/profile?object=${encodeURIComponent(objectName)}`)}
+                  onObjectClick={(objectName) => navigate(`/equipment?object=${encodeURIComponent(objectName)}`)}
                 />
               ))}
             </AnimatePresence>

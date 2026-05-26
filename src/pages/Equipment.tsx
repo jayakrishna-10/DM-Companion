@@ -29,6 +29,7 @@ export function Equipment() {
 
   const [selectedEntry, setSelectedEntry] = useState<LogEntry | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [activeFilter, setActiveFilter] = useState<string>('all')
 
   const entries = useMemo(() => {
     if (!objectName) return []
@@ -58,9 +59,15 @@ export function Equipment() {
     return counts
   }, [entries])
 
+  // Filtered entries based on active filter
+  const filteredEntries = useMemo(() => {
+    if (activeFilter === 'all') return entries
+    return entries.filter(e => e.noteType === activeFilter)
+  }, [entries, activeFilter])
+
   const grouped = useMemo(() => {
     const map = new Map<string, LogEntry[]>()
-    const sorted = [...entries].sort(
+    const sorted = [...filteredEntries].sort(
       (a, b) => b.date.localeCompare(a.date) || b.id - a.id,
     )
     for (const entry of sorted) {
@@ -68,7 +75,7 @@ export function Equipment() {
       map.get(entry.date)!.push(entry)
     }
     return map
-  }, [entries])
+  }, [filteredEntries])
 
   if (!objectName) {
     return (
@@ -114,34 +121,42 @@ export function Equipment() {
         )}
       </div>
 
-      {/* Summary stats */}
+      {/* Summary stats — tappable to filter */}
       <div className="px-4 pb-3">
-        <div className={
-          noteTypes.length === 0 ? 'grid grid-cols-1 gap-2' :
-          noteTypes.length === 1 ? 'grid grid-cols-2 gap-2' :
-          noteTypes.length === 2 ? 'grid grid-cols-3 gap-2' :
-          noteTypes.length === 3 ? 'grid grid-cols-4 gap-2' :
-          'flex flex-wrap gap-2'
-        }>
-          <SummaryCard label="Total" count={entries.length} color="#A1A1AA" />
-          {noteTypes.map((type) => (
-            <SummaryCard
-              key={type}
-              label={type}
-              count={typeCounts[type] || 0}
-              color={getNoteTypeColor(type)}
-            />
-          ))}
+        <div className="flex flex-wrap gap-2">
+          <FilterCard
+            label="All"
+            count={entries.length}
+            color="#A1A1AA"
+            active={activeFilter === 'all'}
+            onClick={() => setActiveFilter('all')}
+          />
+          {noteTypes.map((type) => {
+            const count = typeCounts[type] || 0
+            if (count === 0) return null
+            return (
+              <FilterCard
+                key={type}
+                label={type}
+                count={count}
+                color={getNoteTypeColor(type)}
+                active={activeFilter === type}
+                onClick={() => setActiveFilter(activeFilter === type ? 'all' : type)}
+              />
+            )
+          })}
         </div>
       </div>
 
       {/* Timeline */}
       <div className="flex-1 overflow-y-auto px-4 pb-24">
-        {entries.length === 0 ? (
+        {filteredEntries.length === 0 ? (
           <div className="py-16 text-center">
             <p className="text-text-muted text-base">No entries found</p>
             <p className="text-text-muted text-sm mt-1">
-              This equipment has no log entries yet.
+              {activeFilter !== 'all'
+                ? `No ${activeFilter.toLowerCase()} entries for this equipment.`
+                : 'This equipment has no log entries yet.'}
             </p>
           </div>
         ) : (
@@ -198,28 +213,42 @@ export function Equipment() {
   )
 }
 
-/* ─── Summary card ─── */
+/* ─── Filter card (tappable summary stat) ─── */
 
-function SummaryCard({
+function FilterCard({
   label,
   count,
   color,
+  active,
+  onClick,
 }: {
   label: string
   count: number
   color: string
+  active: boolean
+  onClick: () => void
 }) {
   return (
-    <div className="glass rounded-xl p-3">
+    <button
+      onClick={onClick}
+      className={`glass rounded-xl p-3 transition-all duration-150 active:scale-[0.97] ${
+        active ? 'ring-2 ring-offset-1 ring-offset-bg' : ''
+      }`}
+      style={active ? { boxShadow: `0 0 0 2px ${color}40` } : undefined}
+    >
       <div className="flex items-center gap-2 mb-1">
         <span
           className="w-2 h-2 rounded-full flex-shrink-0"
           style={{ backgroundColor: color }}
         />
-        <span className="text-xs text-text-muted truncate">{label}</span>
+        <span className={`text-xs truncate ${active ? 'text-text-primary font-semibold' : 'text-text-muted'}`}>
+          {label}
+        </span>
       </div>
-      <p className="text-xl font-bold text-text-primary">{count}</p>
-    </div>
+      <p className={`text-xl font-bold ${active ? 'text-text-primary' : 'text-text-secondary'}`}>
+        {count}
+      </p>
+    </button>
   )
 }
 
