@@ -4,21 +4,21 @@ import { useDatabase } from '@/hooks/useDatabase'
 import { EntryRow } from '@/components/entry/EntryRow'
 import { EntryDetailSheet } from '@/components/entry/EntryDetailSheet'
 import { Search } from 'lucide-react'
-import type { LogEntry, NoteType } from '@/types'
-import { NOTE_TYPES, NOTE_TYPE_COLORS } from '@/types'
+import type { LogEntry } from '@/types'
+import { getNoteTypeColor } from '@/types'
 import { toast } from '@/components/ui/Toaster'
 
 export function History() {
   const navigate = useNavigate()
-  const { filterEntries, counts, removeEntry } = useDatabase()
-  const [activeType, setActiveType] = useState<NoteType | 'all'>('all')
+  const { filterEntries, counts, removeEntry, noteTypes } = useDatabase()
+  const [activeType, setActiveType] = useState<string | 'all'>('all')
   const [search, setSearch] = useState('')
   const [selectedEntry, setSelectedEntry] = useState<LogEntry | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
 
   const entries = useMemo(() => {
-    const opts: { noteType?: NoteType; search?: string } = {}
-    if (activeType !== 'all') opts.noteType = activeType as NoteType
+    const opts: { noteType?: string; search?: string } = {}
+    if (activeType !== 'all') opts.noteType = activeType
     if (search.trim()) opts.search = search
     return filterEntries(opts)
   }, [activeType, search, filterEntries])
@@ -48,7 +48,7 @@ export function History() {
 
         <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
           <FilterPill label="All" count={counts.all || 0} active={activeType === 'all'} onClick={() => setActiveType('all')} />
-          {NOTE_TYPES.map(type => (
+          {noteTypes.map(type => (
             <FilterPill
               key={type}
               label={type}
@@ -114,9 +114,9 @@ function FilterPill({ label, count, active, onClick, type }: {
   count: number
   active: boolean
   onClick: () => void
-  type?: NoteType
+  type?: string
 }) {
-  const dotColor = type ? NOTE_TYPE_COLORS[type] : '#A1A1AA'
+  const dotColor = type ? getNoteTypeColor(type) : '#A1A1AA'
   return (
     <button
       onClick={onClick}

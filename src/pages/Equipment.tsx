@@ -8,7 +8,7 @@ import { toast } from '@/components/ui/Toaster'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
 import type { LogEntry } from '@/types'
-import { NOTE_TYPES, NOTE_TYPE_COLORS } from '@/types'
+import { getNoteTypeColor } from '@/types'
 
 function formatDate(dateStr: string): string {
   try {
@@ -23,7 +23,7 @@ function formatDate(dateStr: string): string {
 export function Equipment() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { removeEntry } = useDatabase()
+  const { removeEntry, noteTypes } = useDatabase()
 
   const objectName = searchParams.get('object')
 
@@ -116,14 +116,20 @@ export function Equipment() {
 
       {/* Summary stats */}
       <div className="px-4 pb-3">
-        <div className="grid grid-cols-4 gap-2">
+        <div className={
+          noteTypes.length === 0 ? 'grid grid-cols-1 gap-2' :
+          noteTypes.length === 1 ? 'grid grid-cols-2 gap-2' :
+          noteTypes.length === 2 ? 'grid grid-cols-3 gap-2' :
+          noteTypes.length === 3 ? 'grid grid-cols-4 gap-2' :
+          'flex flex-wrap gap-2'
+        }>
           <SummaryCard label="Total" count={entries.length} color="#A1A1AA" />
-          {NOTE_TYPES.map((type) => (
+          {noteTypes.map((type) => (
             <SummaryCard
               key={type}
-              label={type === 'Resolved Complaint' ? 'Resolved' : type}
+              label={type}
               count={typeCounts[type] || 0}
-              color={NOTE_TYPE_COLORS[type]}
+              color={getNoteTypeColor(type)}
             />
           ))}
         </div>

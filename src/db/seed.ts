@@ -1,4 +1,4 @@
-import { initDatabase, importFromCSV } from '@/db/database'
+import { initDatabase, importFromCSV, seedDefaultTags } from '@/db/database'
 
 const SEED_DATA = [
   { note: "P2-4 Discharge valves are closed", date: "2026-05-07", noteType: "Activity", object: "P2-4", objectGroup: "CDCP Pumps", objectType: "Pumps", source: "CWTP logbook" },
@@ -93,6 +93,10 @@ const SEED_DATA = [
 
 export async function seedDatabase() {
   const db = await initDatabase()
+
+  // Seed default tags (note types + sources)
+  seedDefaultTags()
+
   // Check if already seeded
   const result = db.exec('SELECT COUNT(*) as count FROM log_entries')
   const count = result[0]?.values[0]?.[0] as number

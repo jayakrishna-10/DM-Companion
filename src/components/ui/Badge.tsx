@@ -1,16 +1,8 @@
-import type { NoteType } from '@/types'
-import { NOTE_TYPE_BG, NOTE_TYPE_COLORS } from '@/types'
+import { getNoteTypeColor, getNoteTypeBg } from '@/types'
 
 interface BadgeProps {
-  type: NoteType
+  type: string
   size?: 'sm' | 'md'
-}
-
-const TYPE_LABELS: Record<NoteType, string> = {
-  'Activity': 'Activity',
-  'Complaints': 'Complaint',
-  'Abnormality': 'Abnormality',
-  'Resolved Complaint': 'Resolved',
 }
 
 export function Badge({ type, size = 'sm' }: BadgeProps) {
@@ -20,11 +12,11 @@ export function Badge({ type, size = 'sm' }: BadgeProps) {
         size === 'sm' ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-1'
       }`}
       style={{
-        backgroundColor: NOTE_TYPE_BG[type],
-        color: NOTE_TYPE_COLORS[type],
+        backgroundColor: getNoteTypeBg(type),
+        color: getNoteTypeColor(type),
       }}
     >
-      {TYPE_LABELS[type]}
+      <span className="truncate max-w-[100px]">{type}</span>
     </span>
   )
 }

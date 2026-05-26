@@ -2,11 +2,11 @@ import { useState, useMemo } from 'react'
 import { useDatabase } from '@/hooks/useDatabase'
 import { parseMultiInput, autoTagEntries, detectNoteType, detectObjects } from '@/utils/auto-tag'
 import type { LogEntryFormData, ObjectOption, ObjectHierarchy } from '@/types'
-import { NOTE_TYPES, NOTE_TYPE_COLORS } from '@/types'
+import { getNoteTypeColor } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { toast } from '@/components/ui/Toaster'
-import { ClipboardList, Sparkles, ChevronDown, ChevronUp, Pencil, Check, X, ListChecks, ArrowLeft } from 'lucide-react'
+import { ClipboardList, Sparkles, ChevronDown, ChevronUp, Pencil, Check, X, ListChecks, ArrowLeft, Plus } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 
 interface ParsedEntry extends LogEntryFormData {
@@ -16,14 +16,43 @@ interface ParsedEntry extends LogEntryFormData {
 type Step = 'input' | 'review'
 
 export function MultiInput() {
-  const { addEntry, getHierarchy } = useDatabase()
+  const { addEntry, getHierarchy, noteTypes, sourceTags, addTag } = useDatabase()
   const [step, setStep] = useState<Step>('input')
   const [rawText, setRawText] = useState('')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [source, setSource] = useState('CWTP logbook')
   const [entries, setEntries] = useState<ParsedEntry[]>([])
+  const [showAddSource, setShowAddSource] = useState(false)
+  const [newSourceName, setNewSourceName] = useState('')
 
   const hierarchy = getHierarchy()
+
+  const sourceOptions = useMemo(() => {
+    const options = sourceTags.map(s => ({ value: s, label: s }))
+    options.push({ value: '__add_new__', label: '+ Add new source...' })
+    return options
+  }, [sourceTags])
+
+  const handleSourceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value
+    if (val === '__add_new__') {
+      setShowAddSource(true)
+    } else {
+      setSource(val)
+      setShowAddSource(false)
+    }
+  }
+
+  const handleAddSource = () => {
+    const trimmed = newSourceName.trim()
+    if (trimmed) {
+      addTag({ name: trimmed, category: 'source' })
+      setSource(trimmed)
+      setNewSourceName('')
+      setShowAddSource(false)
+      toast('Source added', 'success')
+    }
+  }
 
   const handleParse = () => {
     const lines = parseMultiInput(rawText)
@@ -93,16 +122,46 @@ export function MultiInput() {
           onChange={e => setDate(e.target.value)}
         />
 
-        <Select
-          label="Source"
-          options={[
-            { value: 'CWTP logbook', label: 'CWTP logbook' },
-            { value: 'DM Reports WA group', label: 'DM Reports WA group' },
-          ]}
-          value={source}
-          onChange={e => setSource(e.target.value)}
-          placeholder="Select source..."
-        />
+        <div className="space-y-1.5">
+          <Select
+            label="Source"
+            options={sourceOptions}
+            value={showAddSource ? '' : source}
+            onChange={handleSourceChange}
+            placeholder="Select source..."
+          />
+          <AnimatePresence>
+            {showAddSource && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="flex items-center gap-1.5 overflow-hidden"
+              >
+                <input
+                  type="text"
+                  value={newSourceName}
+                  onChange={e => setNewSourceName(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleAddSource()
+                    if (e.key === 'Escape') { setShowAddSource(false); setNewSourceName('') }
+                  }}
+                  placeholder="New source name..."
+                  className="flex-1 h-9 px-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={handleAddSource}
+                  disabled={!newSourceName.trim()}
+                  className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white text-xs disabled:opacity-50 transition-opacity"
+                >
+                  <Check size={14} />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">
@@ -160,6 +219,9 @@ export function MultiInput() {
             <EntryCard
               key={entry.id}
               entry={entry}
+              noteTypes={noteTypes}
+              sourceTags={sourceTags}
+              addTag={addTag}
               onUpdate={(updates) => updateEntry(entry.id, updates)}
               onRemove={() => removeEntry(entry.id)}
               hierarchy={hierarchy}
@@ -194,16 +256,23 @@ export function MultiInput() {
 
 interface EntryCardProps {
   entry: ParsedEntry
+  noteTypes: string[]
+  sourceTags: string[]
+  addTag: (tag: { name: string; category: 'note_type' | 'source'; color?: string }) => void
   onUpdate: (updates: Partial<ParsedEntry>) => void
   onRemove: () => void
   hierarchy: ObjectHierarchy
 }
 
-function EntryCard({ entry, onUpdate, onRemove, hierarchy }: EntryCardProps) {
+function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, hierarchy }: EntryCardProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [localNote, setLocalNote] = useState(entry.note)
   const [searchQuery, setSearchQuery] = useState('')
   const [showDropdowns, setShowDropdowns] = useState(false)
+  const [showAddNoteType, setShowAddNoteType] = useState(false)
+  const [newNoteTypeName, setNewNoteTypeName] = useState('')
+  const [showAddSource, setShowAddSource] = useState(false)
+  const [newSourceName, setNewSourceName] = useState('')
 
   const typeOptions = hierarchy.types.map(t => ({ value: t, label: t }))
   const groupOptions = entry.objectType
@@ -212,6 +281,12 @@ function EntryCard({ entry, onUpdate, onRemove, hierarchy }: EntryCardProps) {
   const objectOptions = entry.objectGroup
     ? (hierarchy.objects[entry.objectGroup] || []).map(o => ({ value: o.object, label: o.object }))
     : []
+
+  const sourceOptions = useMemo(() => {
+    const options = sourceTags.map(s => ({ value: s, label: s }))
+    options.push({ value: '__add_new__', label: '+ Add new source...' })
+    return options
+  }, [sourceTags])
 
   // Real-time auto-tag suggestions when editing
   const suggestions = useMemo(() => {
@@ -258,7 +333,47 @@ function EntryCard({ entry, onUpdate, onRemove, hierarchy }: EntryCardProps) {
     onUpdate({ object: obj.object, objectGroup: obj.objectGroup, objectType: obj.objectType })
   }
 
-  const noteTypeColor = NOTE_TYPE_COLORS[entry.noteType]
+  const handleAddNoteType = () => {
+    const trimmed = newNoteTypeName.trim()
+    if (trimmed) {
+      addTag({ name: trimmed, category: 'note_type' })
+      onUpdate({ noteType: trimmed })
+      setNewNoteTypeName('')
+      setShowAddNoteType(false)
+      toast('Note type added', 'success')
+    }
+  }
+
+  const handleSourceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value
+    if (val === '__add_new__') {
+      setShowAddSource(true)
+    } else {
+      onUpdate({ source: val })
+      setShowAddSource(false)
+    }
+  }
+
+  const handleAddSource = () => {
+    const trimmed = newSourceName.trim()
+    if (trimmed) {
+      addTag({ name: trimmed, category: 'source' })
+      onUpdate({ source: trimmed })
+      setNewSourceName('')
+      setShowAddSource(false)
+      toast('Source added', 'success')
+    }
+  }
+
+  function shortenLabel(type: string): string {
+    if (type === 'Activity') return 'Act'
+    if (type === 'Complaints') return 'Cmpl'
+    if (type === 'Abnormality') return 'Abn'
+    if (type === 'Resolved Complaint') return 'RC'
+    return type.slice(0, 3)
+  }
+
+  const noteTypeColor = getNoteTypeColor(entry.noteType)
 
   return (
     <motion.div
@@ -318,22 +433,63 @@ function EntryCard({ entry, onUpdate, onRemove, hierarchy }: EntryCardProps) {
               {/* Note Type */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Note Type</label>
-                <div className="flex gap-1.5">
-                  {NOTE_TYPES.map(type => (
+                <div className="flex flex-wrap gap-1.5">
+                  {noteTypes.map(type => (
                     <button
                       key={type}
                       onClick={() => onUpdate({ noteType: type })}
-                      className="flex-1 h-8 text-[11px] font-semibold rounded-lg border transition-all"
+                      className="h-8 px-2.5 text-[11px] font-semibold rounded-lg border transition-all"
                       style={{
-                        backgroundColor: entry.noteType === type ? NOTE_TYPE_COLORS[type] : 'transparent',
-                        borderColor: NOTE_TYPE_COLORS[type],
-                        color: entry.noteType === type ? '#fff' : NOTE_TYPE_COLORS[type],
+                        backgroundColor: entry.noteType === type ? getNoteTypeColor(type) : 'transparent',
+                        borderColor: getNoteTypeColor(type),
+                        color: entry.noteType === type ? '#fff' : getNoteTypeColor(type),
                       }}
                     >
-                      {type === 'Activity' ? 'Act' : type === 'Complaints' ? 'Cmpl' : type === 'Abnormality' ? 'Abn' : 'RC'}
+                      {shortenLabel(type)}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => setShowAddNoteType(true)}
+                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-dashed border-text-muted text-text-muted hover:text-text-primary hover:border-text-primary transition-all text-xs"
+                  >
+                    <Plus size={14} />
+                  </button>
                 </div>
+
+                {/* Inline add note type input */}
+                <AnimatePresence>
+                  {showAddNoteType && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="flex items-center gap-1.5 overflow-hidden"
+                    >
+                      <input
+                        type="text"
+                        value={newNoteTypeName}
+                        onChange={e => setNewNoteTypeName(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleAddNoteType()
+                          if (e.key === 'Escape') { setShowAddNoteType(false); setNewNoteTypeName('') }
+                        }}
+                        placeholder="New note type..."
+                        className="flex-1 h-8 px-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddNoteType}
+                        disabled={!newNoteTypeName.trim()}
+                        className="h-8 w-8 flex items-center justify-center rounded-lg bg-accent text-white text-xs disabled:opacity-50 transition-opacity"
+                      >
+                        <Check size={14} />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {/* Auto-detected note type suggestion */}
                 <AnimatePresence>
                   {showNoteTypeSuggestion && (
@@ -349,7 +505,7 @@ function EntryCard({ entry, onUpdate, onRemove, hierarchy }: EntryCardProps) {
                       <span className="text-text-muted">Detected:</span>
                       <span
                         className="font-semibold"
-                        style={{ color: NOTE_TYPE_COLORS[suggestions.noteType as keyof typeof NOTE_TYPE_COLORS] }}
+                        style={{ color: getNoteTypeColor(suggestions.noteType!) }}
                       >
                         {suggestions.noteType}
                       </span>
@@ -478,22 +634,53 @@ function EntryCard({ entry, onUpdate, onRemove, hierarchy }: EntryCardProps) {
               </div>
 
               {/* Date & Source */}
-              <div className="grid grid-cols-2 gap-2">
-                <Input
-                  label="Date"
-                  type="date"
-                  value={entry.date}
-                  onChange={e => onUpdate({ date: e.target.value })}
-                />
-                <Select
-                  label="Source"
-                  options={[
-                    { value: 'CWTP logbook', label: 'CWTP logbook' },
-                    { value: 'DM Reports WA group', label: 'DM Reports WA group' },
-                  ]}
-                  value={entry.source}
-                  onChange={e => onUpdate({ source: e.target.value })}
-                />
+              <div className="space-y-1.5">
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    label="Date"
+                    type="date"
+                    value={entry.date}
+                    onChange={e => onUpdate({ date: e.target.value })}
+                  />
+                  <Select
+                    label="Source"
+                    options={sourceOptions}
+                    value={showAddSource ? '' : entry.source}
+                    onChange={handleSourceChange}
+                  />
+                </div>
+
+                <AnimatePresence>
+                  {showAddSource && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="flex items-center gap-1.5 overflow-hidden"
+                    >
+                      <input
+                        type="text"
+                        value={newSourceName}
+                        onChange={e => setNewSourceName(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleAddSource()
+                          if (e.key === 'Escape') { setShowAddSource(false); setNewSourceName('') }
+                        }}
+                        placeholder="New source name..."
+                        className="flex-1 h-9 px-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddSource}
+                        disabled={!newSourceName.trim()}
+                        className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white text-xs disabled:opacity-50 transition-opacity"
+                      >
+                        <Check size={14} />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           </motion.div>

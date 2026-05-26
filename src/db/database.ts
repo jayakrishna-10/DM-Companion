@@ -1,6 +1,6 @@
 import initSqlJs, { type Database, type SqlValue } from 'sql.js'
-import type { LogEntry, NoteType, ObjectOption } from '@/types'
-import { NOTE_TYPES } from '@/types'
+import type { LogEntry, NoteType, ObjectOption, Tag } from '@/types'
+import { DEFAULT_NOTE_TYPES, getNoteTypeColor } from '@/types'
 
 let db: Database | null = null
 let saveTimeout: ReturnType<typeof setTimeout> | null = null
@@ -50,6 +50,18 @@ function createTables(database: Database) {
     CREATE TABLE IF NOT EXISTS schema_version (
       version INTEGER PRIMARY KEY,
       applied_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+    )
+  `)
+
+  database.run(`
+    CREATE TABLE IF NOT EXISTS tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL,
+      color TEXT DEFAULT '',
+      sort_order INTEGER DEFAULT 0,
+      synced INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(name, category)
     )
   `)
 
@@ -289,7 +301,10 @@ export function getEntryCountsByType(): Record<string, number> {
   const d = getDatabase()
   const result = d.exec('SELECT note_type, COUNT(*) as count FROM log_entries GROUP BY note_type')
   const counts: Record<string, number> = { all: 0 }
-  for (const nt of NOTE_TYPES) counts[nt] = 0
+
+  // Initialize counts for all known note types from tags table
+  const noteTypes = getNoteTypes()
+  for (const nt of noteTypes) counts[nt] = 0
 
   let total = 0
   if (result.length > 0) {
@@ -469,6 +484,122 @@ export function exportAllEntries(): LogEntry[] {
 export interface OpenIssue {
   entry: LogEntry
   resolved: boolean
+}
+
+// ─── Tag CRUD ────────────────────────────────────────────────────────────
+
+function rowToTag(row: unknown[]): Tag {
+  return {
+    id: row[0] as number,
+    name: row[1] as string,
+    category: row[2] as 'note_type' | 'source',
+    color: row[3] as string,
+    sortOrder: row[4] as number,
+  }
+}
+
+export function getTags(category?: 'note_type' | 'source'): Tag[] {
+  const d = getDatabase()
+  const sql = category
+    ? 'SELECT * FROM tags WHERE category = ? ORDER BY sort_order, name'
+    : 'SELECT * FROM tags ORDER BY category, sort_order, name'
+  const params = category ? [category] : []
+  const result = d.exec(sql, params)
+  if (result.length === 0) return []
+  return result[0].values.map(rowToTag)
+}
+
+export function getNoteTypes(): string[] {
+  return getTags('note_type').map(t => t.name)
+}
+
+export function getSourceTags(): string[] {
+  return getTags('source').map(t => t.name)
+}
+
+export function addTag(tag: { name: string; category: 'note_type' | 'source'; color?: string; sortOrder?: number }): number {
+  const d = getDatabase()
+  const color = tag.color || getNoteTypeColor(tag.name)
+  d.run(
+    'INSERT OR IGNORE INTO tags (name, category, color, sort_order) VALUES (?, ?, ?, ?)',
+    [tag.name, tag.category, color, tag.sortOrder ?? 0]
+  )
+  const result = d.exec('SELECT last_insert_rowid() as id')
+  const id = result[0].values[0][0] as number
+  scheduleSave()
+  return id
+}
+
+export function deleteTag(id: number): void {
+  const d = getDatabase()
+  d.run('DELETE FROM tags WHERE id = ?', [id])
+  scheduleSave()
+}
+
+export function upsertTagsFromNotion(tags: { name: string; category: 'note_type' | 'source'; color?: string }[]): number {
+  const d = getDatabase()
+  let upserted = 0
+  d.run('BEGIN TRANSACTION')
+  try {
+    for (const tag of tags) {
+      const color = tag.color || getNoteTypeColor(tag.name)
+      // Check if tag exists
+      const existing = d.exec(
+        'SELECT id FROM tags WHERE name = ? AND category = ?',
+        [tag.name, tag.category]
+      )
+      if (existing.length === 0 || existing[0].values.length === 0) {
+        d.run(
+          'INSERT INTO tags (name, category, color, sort_order, synced) VALUES (?, ?, ?, 0, 1)',
+          [tag.name, tag.category, color]
+        )
+        upserted++
+      } else {
+        // Update color if changed
+        d.run(
+          'UPDATE tags SET color = ?, synced = 1 WHERE name = ? AND category = ?',
+          [color, tag.name, tag.category]
+        )
+      }
+    }
+    d.run('COMMIT')
+  } catch {
+    d.run('ROLLBACK')
+  }
+  if (upserted > 0) scheduleSave()
+  return upserted
+}
+
+export function seedDefaultTags(): void {
+  const d = getDatabase()
+  const existing = d.exec("SELECT COUNT(*) FROM tags WHERE category = 'note_type'")
+  const count = existing.length > 0 ? (existing[0].values[0][0] as number) : 0
+  if (count > 0) return // Already seeded
+
+  const defaultColors: Record<string, string> = {
+    'Activity': '#3B82F6',
+    'Complaints': '#EF4444',
+    'Abnormality': '#F97316',
+    'Resolved Complaint': '#22C55E',
+  }
+
+  DEFAULT_NOTE_TYPES.forEach((name, i) => {
+    d.run(
+      'INSERT OR IGNORE INTO tags (name, category, color, sort_order) VALUES (?, ?, ?, ?)',
+      [name, 'note_type', defaultColors[name] || getNoteTypeColor(name), i]
+    )
+  })
+
+  // Default source tags
+  const defaultSources = ['CWTP logbook', 'DM Reports WA group']
+  defaultSources.forEach((name, i) => {
+    d.run(
+      'INSERT OR IGNORE INTO tags (name, category, color, sort_order) VALUES (?, ?, ?, ?)',
+      [name, 'source', '#8B5CF6', i]
+    )
+  })
+
+  scheduleSave()
 }
 
 export function getOpenIssues(): OpenIssue[] {

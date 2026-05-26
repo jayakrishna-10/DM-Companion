@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
-import { initDatabase, getDatabase, insertEntry, insertEntryFromNotion, updateEntry, deleteEntry, getEntriesByDate, getEntryCountsByType, searchEntries, getEntries, importFromCSV, clearAllData, exportAllEntries, getObjectHierarchy, getUnsyncedEntries, getExistingNotionPageIds, markAsSynced, isDuplicateEntry, deleteNotionRemovedEntries, getOpenIssues } from '@/db/database'
+import { initDatabase, getDatabase, insertEntry, insertEntryFromNotion, updateEntry, deleteEntry, getEntriesByDate, getEntryCountsByType, searchEntries, getEntries, importFromCSV, clearAllData, exportAllEntries, getObjectHierarchy, getUnsyncedEntries, getExistingNotionPageIds, markAsSynced, isDuplicateEntry, deleteNotionRemovedEntries, getOpenIssues, getTags, getNoteTypes, getSourceTags, addTag, deleteTag, upsertTagsFromNotion } from '@/db/database'
 import { seedDatabase } from '@/db/seed'
-import type { LogEntry, LogEntryFormData, NoteType, ObjectHierarchy, OpenIssue, SyncStatus } from '@/types'
+import type { LogEntry, LogEntryFormData, NoteType, ObjectHierarchy, OpenIssue, SyncStatus, Tag } from '@/types'
 
 interface DatabaseContextType {
   isReady: boolean
@@ -21,6 +21,13 @@ interface DatabaseContextType {
   clearData: () => void
   exportData: () => LogEntry[]
   syncToNotion: () => Promise<void>
+  // Tag management
+  tags: Tag[]
+  noteTypes: string[]
+  sourceTags: string[]
+  addTag: (tag: { name: string; category: 'note_type' | 'source'; color?: string }) => void
+  removeTag: (id: number) => void
+  refreshTags: () => void
 }
 
 const DatabaseContext = createContext<DatabaseContextType | null>(null)
@@ -31,12 +38,22 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('offline')
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null)
+  const [tags, setTags] = useState<Tag[]>([])
+  const [noteTypes, setNoteTypes] = useState<string[]>([])
+  const [sourceTags, setSourceTags] = useState<string[]>([])
 
   const refreshEntries = useCallback(() => {
     if (!isReady) return
     const byDate = getEntriesByDate()
     setEntries(new Map(byDate))
     setCounts(getEntryCountsByType())
+  }, [isReady])
+
+  const refreshTags = useCallback(() => {
+    if (!isReady) return
+    setTags(getTags())
+    setNoteTypes(getNoteTypes())
+    setSourceTags(getSourceTags())
   }, [isReady])
 
   useEffect(() => {
@@ -53,8 +70,11 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    if (isReady) refreshEntries()
-  }, [isReady, refreshEntries])
+    if (isReady) {
+      refreshEntries()
+      refreshTags()
+    }
+  }, [isReady, refreshEntries, refreshTags])
 
   useEffect(() => {
     const handleOnline = () => setSyncStatus('synced')
@@ -117,6 +137,16 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     return exportAllEntries()
   }, [])
 
+  const addTagFn = useCallback((tag: { name: string; category: 'note_type' | 'source'; color?: string }) => {
+    addTag(tag)
+    refreshTags()
+  }, [refreshTags])
+
+  const removeTagFn = useCallback((id: number) => {
+    deleteTag(id)
+    refreshTags()
+  }, [refreshTags])
+
   let syncInProgress = false
 
   const syncToNotion = useCallback(async () => {
@@ -132,6 +162,34 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
       console.log('[sync] Pulling entries from Notion...')
       let pullFailed = false
       try {
+        // Fetch schema (tag options) first
+        try {
+          const schemaRes = await fetch('/api/notion-schema')
+          if (schemaRes.ok) {
+            const schemaData = await schemaRes.json()
+            const notionTags: { name: string; category: 'note_type' | 'source'; color?: string }[] = []
+
+            // Map note type options
+            for (const opt of (schemaData.noteTypes || [])) {
+              notionTags.push({ name: opt.name, category: 'note_type', color: opt.color })
+            }
+            // Map source options
+            for (const opt of (schemaData.sources || [])) {
+              notionTags.push({ name: opt.name, category: 'source', color: opt.color })
+            }
+
+            if (notionTags.length > 0) {
+              const upserted = upsertTagsFromNotion(notionTags)
+              if (upserted > 0) {
+                console.log(`[sync] Upserted ${upserted} new tags from Notion schema`)
+                refreshTags()
+              }
+            }
+          }
+        } catch (schemaErr) {
+          console.warn('[sync] Failed to fetch Notion schema (non-fatal):', schemaErr)
+        }
+
         const pullRes = await fetch('/api/notion-pull')
         if (pullRes.ok) {
           const pullData = await pullRes.json()
@@ -300,6 +358,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
       isReady, entries, counts, syncStatus, lastSyncTime,
       refreshEntries, addEntry, editEntry, removeEntry, search, filterEntries,
       getHierarchy: getHierarchyFn, getOpenIssues: getOpenIssuesFn, importData, clearData: clearDataFn, exportData, syncToNotion,
+      tags, noteTypes, sourceTags, addTag: addTagFn, removeTag: removeTagFn, refreshTags,
     }}>
       {children}
     </DatabaseContext.Provider>

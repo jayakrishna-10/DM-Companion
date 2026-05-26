@@ -1,12 +1,12 @@
 import { useState, useMemo } from 'react'
-import type { NoteType, LogEntryFormData, ObjectOption } from '@/types'
-import { NOTE_TYPE_COLORS } from '@/types'
+import type { LogEntryFormData, ObjectOption } from '@/types'
+import { getNoteTypeColor } from '@/types'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Input, TextArea, Select } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { useDatabase } from '@/hooks/useDatabase'
 import { detectNoteType, detectObjects } from '@/utils/auto-tag'
-import { Search, Sparkles } from 'lucide-react'
+import { Search, Sparkles, Check } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { toast } from '@/components/ui/Toaster'
 
@@ -17,8 +17,8 @@ interface EntryFormProps {
 }
 
 export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
-  const { addEntry, editEntry, getHierarchy } = useDatabase()
-  const [noteType, setNoteType] = useState<NoteType>(initialData?.noteType || 'Activity')
+  const { addEntry, editEntry, getHierarchy, noteTypes, sourceTags, addTag } = useDatabase()
+  const [noteType, setNoteType] = useState<string>(initialData?.noteType || 'Activity')
   const [note, setNote] = useState(initialData?.note || '')
   const [date, setDate] = useState(initialData?.date || new Date().toISOString().split('T')[0])
   const [object, setObject] = useState(initialData?.object || '')
@@ -28,6 +28,8 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [showDropdowns, setShowDropdowns] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showAddSource, setShowAddSource] = useState(false)
+  const [newSourceName, setNewSourceName] = useState('')
 
   const hierarchy = getHierarchy()
 
@@ -35,9 +37,16 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
   const groupOptions = objectType ? (hierarchy.groups[objectType] || []).map(g => ({ value: g, label: g })) : []
   const objectOptions = objectGroup ? (hierarchy.objects[objectGroup] || []).map(o => ({ value: o.object, label: o.object })) : []
 
+  // Build source options from dynamic sourceTags + add-new option
+  const sourceOptions = useMemo(() => {
+    const options = sourceTags.map(s => ({ value: s, label: s }))
+    options.push({ value: '__add_new__', label: '+ Add new source...' })
+    return options
+  }, [sourceTags])
+
   // Real-time auto-tag suggestions based on note text
   const suggestions = useMemo(() => {
-    if (!note.trim() || note.length < 2) return { noteType: null as NoteType | null, objects: [] as ObjectOption[] }
+    if (!note.trim() || note.length < 2) return { noteType: null as string | null, objects: [] as ObjectOption[] }
     const detectedType = detectNoteType(note)
     const detectedObjects = detectObjects(note, hierarchy, 3)
     return { noteType: detectedType, objects: detectedObjects }
@@ -48,6 +57,33 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
 
   // Whether there are object suggestions not already selected
   const objectSuggestions = suggestions.objects.filter(s => s.object !== object)
+
+  const handleAddNoteType = (name: string) => {
+    addTag({ name, category: 'note_type' })
+    setNoteType(name)
+    toast('Note type added', 'success')
+  }
+
+  const handleAddSource = () => {
+    const trimmed = newSourceName.trim()
+    if (trimmed) {
+      addTag({ name: trimmed, category: 'source' })
+      setSource(trimmed)
+      setNewSourceName('')
+      setShowAddSource(false)
+      toast('Source added', 'success')
+    }
+  }
+
+  const handleSourceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value
+    if (val === '__add_new__') {
+      setShowAddSource(true)
+    } else {
+      setSource(val)
+      setShowAddSource(false)
+    }
+  }
 
   const handleObjectSelect = (obj: { object: string; objectGroup: string; objectType: string }) => {
     setObject(obj.object)
@@ -114,7 +150,12 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
     <form onSubmit={handleSubmit} className="space-y-4 p-4">
       <div className="space-y-1.5">
         <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Note Type</label>
-        <SegmentedControl value={noteType} onChange={setNoteType} />
+        <SegmentedControl
+          value={noteType}
+          onChange={setNoteType}
+          noteTypes={noteTypes}
+          onAddType={handleAddNoteType}
+        />
         {/* Auto-detected note type suggestion */}
         <AnimatePresence>
           {showNoteTypeSuggestion && (
@@ -130,7 +171,7 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
               <span className="text-text-muted">Detected:</span>
               <span
                 className="font-semibold"
-                style={{ color: NOTE_TYPE_COLORS[suggestions.noteType!] }}
+                style={{ color: getNoteTypeColor(suggestions.noteType!) }}
               >
                 {suggestions.noteType}
               </span>
@@ -277,16 +318,47 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
         placeholder="Describe the activity, complaint, or abnormality..."
       />
 
-      <Select
-        label="Source"
-        options={[
-          { value: 'CWTP logbook', label: 'CWTP logbook' },
-          { value: 'DM Reports WA group', label: 'DM Reports WA group' },
-        ]}
-        value={source}
-        onChange={e => setSource(e.target.value)}
-        placeholder="Select source..."
-      />
+      <div className="space-y-1.5">
+        <Select
+          label="Source"
+          options={sourceOptions}
+          value={showAddSource ? '' : source}
+          onChange={handleSourceChange}
+          placeholder="Select source..."
+        />
+
+        <AnimatePresence>
+          {showAddSource && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="flex items-center gap-1.5 overflow-hidden"
+            >
+              <input
+                type="text"
+                value={newSourceName}
+                onChange={e => setNewSourceName(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleAddSource()
+                  if (e.key === 'Escape') { setShowAddSource(false); setNewSourceName('') }
+                }}
+                placeholder="New source name..."
+                className="flex-1 h-9 px-2.5 rounded-lg bg-surface-2 border border-border-subtle text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={handleAddSource}
+                disabled={!newSourceName.trim()}
+                className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white text-xs disabled:opacity-50 transition-opacity"
+              >
+                <Check size={14} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       <Button
         type="submit"
