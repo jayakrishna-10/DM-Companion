@@ -29,8 +29,24 @@ export function NewEntry() {
         })
       }
       setLoading(false)
+    } else {
+      // Build initial data from query params for prefill (e.g. from Profiles / Equipment)
+      const prefilled: LogEntryFormData = {
+        note: searchParams.get('note') || '',
+        date: searchParams.get('date') || new Date().toISOString().split('T')[0],
+        noteType: searchParams.get('noteType') || 'Activity',
+        object: searchParams.get('object') || '',
+        objectGroup: searchParams.get('objectGroup') || '',
+        objectType: searchParams.get('objectType') || '',
+        source: searchParams.get('source') || 'CWTP logbook',
+      }
+      // Only set if at least one meaningful param is present
+      const hasPrefill = prefilled.object || prefilled.note || prefilled.noteType !== 'Activity'
+      if (hasPrefill) {
+        setInitialData(prefilled)
+      }
     }
-  }, [editId])
+  }, [editId, searchParams])
 
   const handleSubmit = (data: LogEntryFormData) => {
     addEntry(data)

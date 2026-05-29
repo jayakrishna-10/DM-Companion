@@ -1,18 +1,32 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowUpRight, CircleDot, Factory } from 'lucide-react'
+import {
+  ArrowUpRight,
+  CircleDot,
+  Factory,
+  Search,
+  ChevronLeft,
+  Plus,
+  FileText,
+  CheckCircle2,
+  AlertTriangle,
+  X,
+} from 'lucide-react'
 import { useDatabase } from '@/hooks/useDatabase'
 import { EntryDetailSheet } from '@/components/entry/EntryDetailSheet'
 import { toast } from '@/components/ui/Toaster'
 import { TimelineCard, TimelineLine } from '@/components/timeline'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import type { LogEntry, ObjectOption } from '@/types'
+import { getNoteTypeColor } from '@/types'
 
 type Severity = 'critical' | 'warning' | 'normal'
 
 interface AssetNode extends ObjectOption {
   entries: LogEntry[]
   severity: Severity
+  hasResolvedHistory: boolean
 }
 
 interface GroupNode {
@@ -94,13 +108,30 @@ function formatDate(dateStr: string): string {
   }
 }
 
+function formatDateFull(dateStr: string): string {
+  try {
+    const date = new Date(dateStr + 'T00:00:00')
+    if (isNaN(date.getTime())) return dateStr
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  } catch {
+    return dateStr
+  }
+}
+
+type MobileStep = 'types' | 'groups' | 'assets' | 'detail'
+
 export function Profiles() {
   const navigate = useNavigate()
   const { entries, getHierarchy, removeEntry } = useDatabase()
+  const isMobile = useMediaQuery('(max-width: 1023px)')
+
   const [selectedType, setSelectedType] = useState<string>('')
   const [selectedObject, setSelectedObject] = useState<string>('')
   const [selectedEntry, setSelectedEntry] = useState<LogEntry | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [activeFilter, setActiveFilter] = useState<string>('all')
+  const [mobileStep, setMobileStep] = useState<MobileStep>('types')
 
   const hierarchy = getHierarchy()
 
@@ -138,8 +169,9 @@ export function Profiles() {
         const objects = (hierarchy.objects[group] || []).map(obj => {
           const entries = entriesByObject.get(obj.object.toLowerCase().trim()) || []
           const severity = getAssetSeverity(entries, resolvedObjects)
+          const hasResolvedHistory = entries.some(e => e.noteType.toLowerCase().includes('resolved'))
           groupSeverity = mergeSeverity(groupSeverity, severity)
-          return { ...obj, entries, severity }
+          return { ...obj, entries, severity, hasResolvedHistory }
         })
         return { group, objects, severity: groupSeverity }
       })
@@ -168,20 +200,80 @@ export function Profiles() {
 
   const selectedEntries = useMemo(() => selectedAsset?.entries || [], [selectedAsset])
 
+  const filteredEntries = useMemo(() => {
+    if (activeFilter === 'all') return selectedEntries
+    return selectedEntries.filter(e => e.noteType === activeFilter)
+  }, [selectedEntries, activeFilter])
+
   const groupedEntries = useMemo(() => {
     const map = new Map<string, LogEntry[]>()
-    for (const entry of selectedEntries) {
+    for (const entry of filteredEntries) {
       if (!map.has(entry.date)) map.set(entry.date, [])
       map.get(entry.date)!.push(entry)
     }
     return map
-  }, [selectedEntries])
+  }, [filteredEntries])
+
+  // Filtered groups/assets for search
+  const filteredGroups = useMemo(() => {
+    if (!selectedTypeNode || !searchQuery.trim()) return selectedTypeNode?.groups || []
+    const q = searchQuery.toLowerCase().trim()
+    return selectedTypeNode.groups.map(group => ({
+      ...group,
+      objects: group.objects.filter(asset =>
+        asset.object.toLowerCase().includes(q) ||
+        asset.objectGroup.toLowerCase().includes(q)
+      ),
+    })).filter(group => group.objects.length > 0)
+  }, [selectedTypeNode, searchQuery])
 
   const selectType = (typeNode: TypeNode) => {
     setSelectedType(typeNode.type)
     const firstAsset = typeNode.groups.flatMap(group => group.objects)[0]
     setSelectedObject(firstAsset?.object || '')
+    setSearchQuery('')
+    if (isMobile) setMobileStep('groups')
   }
+
+  const selectAsset = (asset: AssetNode) => {
+    setSelectedObject(asset.object)
+    setActiveFilter('all')
+    if (isMobile) setMobileStep('detail')
+  }
+
+  const goBack = () => {
+    if (mobileStep === 'detail') setMobileStep('assets')
+    else if (mobileStep === 'assets') setMobileStep('groups')
+    else if (mobileStep === 'groups') {
+      setMobileStep('types')
+    }
+  }
+
+  // Asset metadata
+  const assetMeta = useMemo(() => {
+    if (!selectedAsset) return null
+    const total = selectedAsset.entries.length
+    const lastDate = selectedAsset.entries[0]?.date || ''
+    const openIssues = selectedAsset.entries.filter(e => {
+      const nt = e.noteType.toLowerCase()
+      return (nt.includes('complaint') && !nt.includes('resolved')) || nt.includes('abnormal')
+    }).length
+    return { total, lastDate, openIssues }
+  }, [selectedAsset])
+
+  // Note type counts for filter pills
+  const noteTypeCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const entry of selectedEntries) {
+      counts[entry.noteType] = (counts[entry.noteType] || 0) + 1
+    }
+    return counts
+  }, [selectedEntries])
+
+  const noteTypesForFilter = useMemo(() => {
+    const types = Object.keys(noteTypeCounts)
+    return types.sort()
+  }, [noteTypeCounts])
 
   if (topology.length === 0) {
     return (
@@ -197,23 +289,51 @@ export function Profiles() {
     )
   }
 
+  const showTypesPanel = !isMobile || mobileStep === 'types'
+  const showMatrixPanel = !isMobile || mobileStep === 'groups' || mobileStep === 'assets'
+  const showDetailPanel = !isMobile || mobileStep === 'detail'
+
   return (
     <div className="flex h-full flex-col bg-neutral-950 text-neutral-100">
       <div className="grid flex-1 gap-3 px-3 pt-3 pb-24 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.72fr)] lg:overflow-hidden lg:px-4">
+        {/* Left column: Types + Matrix */}
         <section className="min-w-0 space-y-3 lg:overflow-hidden">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {topology.map(typeNode => (
-              <TypePanel
-                key={typeNode.type}
-                typeNode={typeNode}
-                active={selectedTypeNode?.type === typeNode.type}
-                onClick={() => selectType(typeNode)}
-              />
-            ))}
-          </div>
+          {/* Type panels */}
+          {showTypesPanel && (
+            <motion.div
+              initial={isMobile ? { opacity: 0, x: -20 } : false}
+              animate={{ opacity: 1, x: 0 }}
+              className="grid grid-cols-2 gap-2 sm:grid-cols-3"
+            >
+              {topology.map(typeNode => (
+                <TypePanel
+                  key={typeNode.type}
+                  typeNode={typeNode}
+                  active={selectedTypeNode?.type === typeNode.type}
+                  onClick={() => selectType(typeNode)}
+                />
+              ))}
+            </motion.div>
+          )}
 
-          {selectedTypeNode && (
-            <div className="rounded-xl border border-neutral-800/70 bg-neutral-950/60 p-3">
+          {/* Matrix workspace */}
+          {showMatrixPanel && selectedTypeNode && (
+            <motion.div
+              initial={isMobile ? { opacity: 0, x: 20 } : false}
+              animate={{ opacity: 1, x: 0 }}
+              className="rounded-xl border border-neutral-800/70 bg-neutral-950/60 p-3"
+            >
+              {/* Mobile back button */}
+              {isMobile && mobileStep !== 'types' && (
+                <button
+                  onClick={goBack}
+                  className="mb-3 inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
+                >
+                  <ChevronLeft size={14} />
+                  Back
+                </button>
+              )}
+
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-mono text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
@@ -229,82 +349,209 @@ export function Profiles() {
                 </div>
               </div>
 
-              <div className="max-h-[250px] space-y-4 overflow-y-auto pr-1">
-                {selectedTypeNode.groups.map(group => (
-                  <GroupMatrix
-                    key={group.group}
-                    group={group}
-                    selectedObject={selectedAsset?.object || ''}
-                    onSelectObject={setSelectedObject}
-                  />
-                ))}
+              {/* Search */}
+              <div className="relative mb-3">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Search assets..."
+                  className="w-full h-8 pl-8 pr-3 rounded-lg bg-neutral-900/60 border border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20 transition-all"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300"
+                    aria-label="Clear search"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
               </div>
-            </div>
+
+              {/* Groups / Assets */}
+              <div className="max-h-[250px] space-y-4 overflow-y-auto pr-1 lg:max-h-none">
+                {filteredGroups.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <p className="text-xs text-neutral-500">No assets match your search</p>
+                  </div>
+                ) : (
+                  filteredGroups.map(group => (
+                    <GroupMatrix
+                      key={group.group}
+                      group={group}
+                      selectedObject={selectedAsset?.object || ''}
+                      onSelectObject={(obj) => {
+                        const asset = group.objects.find(a => a.object === obj)
+                        if (asset) selectAsset(asset)
+                      }}
+                    />
+                  ))
+                )}
+              </div>
+            </motion.div>
           )}
         </section>
 
-        <aside className="min-w-0 rounded-xl border border-neutral-800/70 bg-neutral-950/70 p-3 lg:flex lg:min-h-0 lg:flex-col">
-          <div className="mb-3 flex items-start justify-between gap-3 border-b border-neutral-800/60 pb-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h2 className="truncate font-mono text-lg font-bold text-neutral-100">
-                  {selectedAsset?.object || 'NO-ASSET'}
-                </h2>
-                {selectedAsset && <SeverityDot severity={selectedAsset.severity} />}
-              </div>
-              <p className="mt-0.5 truncate text-[10px] font-medium text-neutral-500">
-                {selectedAsset?.objectGroup || 'No group selected'}
-              </p>
-            </div>
-            {selectedAsset && (
+        {/* Right column: Asset detail */}
+        {showDetailPanel && (
+          <aside className="min-w-0 rounded-xl border border-neutral-800/70 bg-neutral-950/70 p-3 lg:flex lg:min-h-0 lg:flex-col">
+            {/* Mobile back button */}
+            {isMobile && mobileStep === 'detail' && (
               <button
-                onClick={() => navigate(`/equipment?object=${encodeURIComponent(selectedAsset.object)}`)}
-                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-900/60 text-neutral-400 transition-colors hover:border-teal-500/40 hover:text-teal-300"
-                title="Open equipment profile"
+                onClick={goBack}
+                className="mb-3 inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
               >
-                <ArrowUpRight size={15} />
+                <ChevronLeft size={14} />
+                Back to assets
               </button>
             )}
-          </div>
 
-          <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
-            {selectedEntries.length === 0 ? (
-              <div className="py-12 text-center">
-                <p className="text-sm font-semibold text-neutral-400">No entries for this asset</p>
-                <p className="mt-1 text-[11px] text-neutral-600">Select another terminal in the matrix.</p>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                {Array.from(groupedEntries.entries()).map(([date, dateEntries]) => (
-                  <div key={date}>
-                    <div className="mb-2 flex items-center justify-between">
-                      <h3 className="font-mono text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
-                        {formatDate(date)}
-                      </h3>
-                      <span className="rounded-md border border-neutral-800 bg-neutral-800/80 px-1.5 py-0.5 text-[9px] font-medium text-neutral-600">
-                        {dateEntries.length}
+            <div className="mb-3 flex items-start justify-between gap-3 border-b border-neutral-800/60 pb-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate font-mono text-lg font-bold text-neutral-100">
+                    {selectedAsset?.object || 'Select an asset'}
+                  </h2>
+                  {selectedAsset && <SeverityDot severity={selectedAsset.severity} />}
+                </div>
+                <p className="mt-0.5 truncate text-[10px] font-medium text-neutral-500">
+                  {selectedAsset?.objectGroup || 'No group selected'}
+                </p>
+
+                {/* Asset metadata summary */}
+                {assetMeta && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-md border border-neutral-800 bg-neutral-800/80 px-1.5 py-0.5 text-[9px] font-medium text-neutral-400">
+                      <FileText size={10} />
+                      {assetMeta.total} LOGS
+                    </span>
+                    {assetMeta.lastDate && (
+                      <span className="inline-flex items-center gap-1 rounded-md border border-neutral-800 bg-neutral-800/80 px-1.5 py-0.5 text-[9px] font-medium text-neutral-400">
+                        LAST: {formatDate(assetMeta.lastDate)}
                       </span>
-                    </div>
-                    <TimelineLine>
-                      <AnimatePresence>
-                        {dateEntries.map(entry => (
-                          <TimelineCard
-                            key={entry.id}
-                            entry={entry}
-                            onClick={() => {
-                              setSelectedEntry(entry)
-                              setSheetOpen(true)
-                            }}
-                          />
-                        ))}
-                      </AnimatePresence>
-                    </TimelineLine>
+                    )}
+                    {assetMeta.openIssues > 0 && (
+                      <span className="inline-flex items-center gap-1 rounded-md border border-rose-500/20 bg-rose-950/20 px-1.5 py-0.5 text-[9px] font-medium text-rose-300">
+                        <AlertTriangle size={10} />
+                        {assetMeta.openIssues} OPEN
+                      </span>
+                    )}
+                    {selectedAsset?.objectType && (
+                      <span className="rounded-md border border-neutral-800 bg-neutral-800/80 px-1.5 py-0.5 text-[9px] font-medium text-neutral-400">
+                        {selectedAsset.objectType.toUpperCase()}
+                      </span>
+                    )}
                   </div>
+                )}
+              </div>
+
+              {selectedAsset && (
+                <div className="flex flex-shrink-0 items-center gap-2">
+                  <button
+                    onClick={() =>
+                      navigate(
+                        `/new?object=${encodeURIComponent(selectedAsset.object)}&objectGroup=${encodeURIComponent(selectedAsset.objectGroup)}&objectType=${encodeURIComponent(selectedAsset.objectType)}`,
+                      )
+                    }
+                    className="flex h-8 items-center gap-1 rounded-lg border border-teal-500/30 bg-teal-500/10 px-2.5 text-xs font-medium text-teal-300 transition-colors hover:bg-teal-500/20"
+                    aria-label={`New log for ${selectedAsset.object}`}
+                    title={`New log for ${selectedAsset.object}`}
+                  >
+                    <Plus size={14} />
+                    <span className="hidden sm:inline">New log</span>
+                  </button>
+                  <button
+                    onClick={() => navigate(`/equipment?object=${encodeURIComponent(selectedAsset.object)}`)}
+                    className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-900/60 text-neutral-400 transition-colors hover:border-teal-500/40 hover:text-teal-300"
+                    aria-label={`Open equipment profile for ${selectedAsset.object}`}
+                    title={`Open equipment profile for ${selectedAsset.object}`}
+                  >
+                    <ArrowUpRight size={15} />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Note type filters */}
+            {selectedEntries.length > 0 && (
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                <FilterPill
+                  label="All"
+                  count={selectedEntries.length}
+                  color="#737373"
+                  active={activeFilter === 'all'}
+                  onClick={() => setActiveFilter('all')}
+                />
+                {noteTypesForFilter.map(type => (
+                  <FilterPill
+                    key={type}
+                    label={type}
+                    count={noteTypeCounts[type] || 0}
+                    color={getNoteTypeColor(type)}
+                    active={activeFilter === type}
+                    onClick={() => setActiveFilter(activeFilter === type ? 'all' : type)}
+                  />
                 ))}
               </div>
             )}
-          </div>
-        </aside>
+
+            <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
+              {!selectedAsset ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Factory size={28} className="text-neutral-600" />
+                  <p className="mt-3 text-sm font-semibold text-neutral-300">No asset selected</p>
+                  <p className="mt-1 max-w-[16rem] text-[11px] text-neutral-500">
+                    Choose a type from the matrix, then select a group and an asset to view its history and status.
+                  </p>
+                </div>
+              ) : filteredEntries.length === 0 ? (
+                <div className="py-12 text-center">
+                  <p className="text-sm font-semibold text-neutral-400">
+                    {activeFilter !== 'all'
+                      ? `No ${activeFilter.toLowerCase()} entries for this asset`
+                      : 'No entries for this asset'}
+                  </p>
+                  <p className="mt-1 text-[11px] text-neutral-600">
+                    {activeFilter !== 'all'
+                      ? 'Try another filter or select a different asset.'
+                      : 'Select another terminal in the matrix.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {Array.from(groupedEntries.entries()).map(([date, dateEntries]) => (
+                    <div key={date}>
+                      <div className="mb-2 flex items-center justify-between">
+                        <h3 className="font-mono text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+                          {formatDateFull(date)}
+                        </h3>
+                        <span className="rounded-md border border-neutral-800 bg-neutral-800/80 px-1.5 py-0.5 text-[9px] font-medium text-neutral-600">
+                          {dateEntries.length}
+                        </span>
+                      </div>
+                      <TimelineLine>
+                        <AnimatePresence>
+                          {dateEntries.map(entry => (
+                            <TimelineCard
+                              key={entry.id}
+                              entry={entry}
+                              onClick={() => {
+                                setSelectedEntry(entry)
+                                setSheetOpen(true)
+                              }}
+                            />
+                          ))}
+                        </AnimatePresence>
+                      </TimelineLine>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </aside>
+        )}
       </div>
 
       <EntryDetailSheet
@@ -344,6 +591,7 @@ function TypePanel({
     <motion.button
       layout
       onClick={onClick}
+      aria-pressed={active}
       className={`min-w-0 rounded-xl border p-2 text-left transition-all duration-150 active:scale-[0.98] ${
         active
           ? `bg-neutral-900 ${meta.accent} shadow-[0_0_18px_rgba(20,184,166,0.12)]`
@@ -376,7 +624,7 @@ function GroupMatrix({
     <div>
       <div className="mb-2 flex items-center gap-2">
         <h3 className="truncate font-mono text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
-          // {group.group}
+          {group.group}
         </h3>
         <SeverityDot severity={group.severity} />
       </div>
@@ -409,29 +657,86 @@ function AssetButton({
     normal: 'border-neutral-800 bg-neutral-900/40 text-neutral-300',
   }[asset.severity]
 
+  const resolvedStripe = asset.hasResolvedHistory && asset.severity === 'normal'
+
   return (
     <button
       onClick={onClick}
-      className={`min-w-0 rounded-lg border px-1 py-2 text-center transition-all duration-150 active:scale-[0.97] ${severityClass} ${
-        active ? 'border-teal-400 ring-2 ring-teal-400 shadow-[0_0_16px_rgba(45,212,191,0.22)]' : 'hover:border-neutral-600'
-      }`}
+      aria-pressed={active}
+      title={`${asset.object} — ${getStatusLabel(asset.severity)}${asset.hasResolvedHistory ? ' (resolved history)' : ''}`}
+      className={`relative min-w-0 rounded-lg border px-1 py-2 text-center transition-all duration-150 active:scale-[0.97] ${severityClass} ${
+        active
+          ? 'border-teal-400 ring-2 ring-teal-400 shadow-[0_0_16px_rgba(45,212,191,0.22)]'
+          : 'hover:border-neutral-600'
+      } ${resolvedStripe ? 'border-l-2 border-l-emerald-500' : ''}`}
     >
       <span className="block truncate font-mono text-[11px] font-bold">{asset.object}</span>
       <span className="block truncate text-[8.5px] uppercase tracking-tight opacity-70">
         {getStatusLabel(asset.severity)}
       </span>
+      {resolvedStripe && (
+        <span className="absolute top-0.5 right-0.5">
+          <CheckCircle2 size={10} className="text-emerald-500" />
+        </span>
+      )}
     </button>
   )
 }
 
 function SeverityDot({ severity }: { severity: Severity }) {
+  const label = getStatusLabel(severity)
+
   if (severity === 'normal') {
-    return <CircleDot size={10} className="flex-shrink-0 text-neutral-700" />
+    return (
+      <span aria-label={`Status: ${label}`} title={`Status: ${label}`}>
+        <CircleDot size={10} className="flex-shrink-0 text-neutral-700" />
+      </span>
+    )
   }
 
   const className = severity === 'critical'
     ? 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.75)]'
     : 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.65)]'
 
-  return <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${className}`} />
+  return (
+    <span
+      aria-label={`Status: ${label}`}
+      title={`Status: ${label}`}
+      className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${className}`}
+    />
+  )
+}
+
+/* ─── Filter pill (ported from Equipment.tsx) ─── */
+
+function FilterPill({
+  label,
+  count,
+  color,
+  active,
+  onClick,
+}: {
+  label: string
+  count: number
+  color: string
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[9px] font-medium whitespace-nowrap transition-all duration-150 border ${
+        active
+          ? 'bg-neutral-800 text-neutral-200 border-neutral-700'
+          : 'bg-neutral-800/80 text-neutral-500 border-neutral-800 hover:border-neutral-700 hover:text-neutral-400'
+      }`}
+    >
+      <span
+        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+        style={{ backgroundColor: color }}
+      />
+      <span>{label}</span>
+      <span className={active ? 'text-teal-400' : 'text-neutral-600'}>{count}</span>
+    </button>
+  )
 }
