@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
-import { initDatabase, getDatabase, insertEntry, insertEntryFromNotion, updateEntry, updateEntryFromNotion, deleteEntry, getEntriesByDate, getEntryCountsByType, searchEntries, getEntries, importFromCSV, clearAllData, exportAllEntries, getObjectHierarchy, getUnsyncedEntries, getExistingNotionPageIds, getEntryByNotionPageId, markAsSynced, isDuplicateEntry, deleteNotionRemovedEntries, getOpenIssues, getTags, getNoteTypes, getSourceTags, addTag, deleteTag, upsertTagsFromNotion, upsertEntryTags, insertSyncLog, getSyncLogs, getDbStats, clearSyncLogs, insertPlantPhoto, getPlantPhotos, getPlantPhotoTags, getUnsyncedPlantPhotos, markPlantPhotoSynced, deletePlantPhoto } from '@/db/database'
+import { initDatabase, getDatabase, insertEntry, insertEntryFromNotion, updateEntry, updateEntryFromNotion, deleteEntry, getEntriesByDate, getEntryCountsByType, searchEntries, getEntries, importFromCSV, clearAllData, exportAllEntries, getObjectHierarchy, getUnsyncedEntries, getExistingNotionPageIds, getEntryByNotionPageId, markAsSynced, isDuplicateEntry, deleteNotionRemovedEntries, getOpenIssues, getTags, getNoteTypes, getSourceTags, addTag, deleteTag, upsertTagsFromNotion, upsertEntryTags, insertSyncLog, getSyncLogs, getDbStats, clearSyncLogs, insertPlantPhoto, getPlantPhotos, getPlantPhotoTags, getUnsyncedPlantPhotos, markPlantPhotoSynced, deletePlantPhoto, insertPhotoSyncLog, getPhotoSyncLogs } from '@/db/database'
 import { seedDatabase } from '@/db/seed'
-import type { LogEntry, LogEntryFormData, NoteType, ObjectHierarchy, OpenIssue, SyncStatus, Tag, SyncLog, DbStats, PlantPhoto } from '@/types'
+import type { LogEntry, LogEntryFormData, NoteType, ObjectHierarchy, OpenIssue, SyncStatus, Tag, SyncLog, DbStats, PlantPhoto, PhotoSyncLog } from '@/types'
 
 interface DatabaseContextType {
   isReady: boolean
@@ -30,12 +30,13 @@ interface DatabaseContextType {
   refreshTags: () => void
   // Logs & stats
   syncLogs: SyncLog[]
+  photoSyncLogs: PhotoSyncLog[]
   dbStats: DbStats | null
   clearLogs: () => void
   refreshLogs: () => void
   photos: PlantPhoto[]
   photoTags: string[]
-  addPhoto: (photo: { tag: string; sdData: Uint8Array; sdMimeType: string; hdData: Uint8Array; hdMimeType: string }) => number
+  addPhoto: (photos: { tag: string; sdData: Uint8Array; sdMimeType: string; hdData: Uint8Array; hdMimeType: string }[]) => number[]
   removePhoto: (id: number) => void
   refreshPhotos: () => void
 }
@@ -61,6 +62,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
   const [noteTypes, setNoteTypes] = useState<string[]>([])
   const [sourceTags, setSourceTags] = useState<string[]>([])
   const [syncLogs, setSyncLogs] = useState<SyncLog[]>([])
+  const [photoSyncLogs, setPhotoSyncLogs] = useState<PhotoSyncLog[]>([])
   const [dbStats, setDbStats] = useState<DbStats | null>(null)
   const [photos, setPhotos] = useState<PlantPhoto[]>([])
   const [photoTags, setPhotoTags] = useState<string[]>([])
@@ -82,6 +84,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
   const refreshLogs = useCallback(() => {
     if (!isReady) return
     setSyncLogs(getSyncLogs(100))
+    setPhotoSyncLogs(getPhotoSyncLogs(100))
     setDbStats(getDbStats())
   }, [isReady])
 
@@ -490,6 +493,10 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
       // --- PUSH unsynced plant photos to Notion ---
       const unsyncedPhotos = getUnsyncedPlantPhotos()
       if (unsyncedPhotos.length > 0 && navigator.onLine) {
+        const photoStartTime = Date.now()
+        let photoSyncError = ''
+        let photoPushed = 0
+        let photoFailed = 0
         console.log(`[sync] Backing up ${unsyncedPhotos.length} plant photos to Notion...`)
         const photoRes = await fetch('/api/notion-photo-sync', {
           method: 'POST',
@@ -498,10 +505,12 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
             photos: unsyncedPhotos.map(photo => ({
               id: photo.id,
               tag: photo.tag,
-              filename: `${photo.tag.replace(/[^a-z0-9-_]+/gi, '-').replace(/^-|-$/g, '') || 'plant-photo'}-${photo.id}.jpg`,
+              name: photo.tag,
+              filename: `${photo.tag.replace(/[^a-z0-9-_]+/gi, '-').replace(/^-|-$/g, '') || 'plant-photo'}.jpg`,
               mimeType: photo.hdMimeType,
               base64Data: photo.hdData ? bytesToBase64(photo.hdData) : '',
               hdSizeBytes: photo.hdSizeBytes,
+              approxSizeKb: Math.max(1, Math.round(photo.hdSizeBytes / 1024)),
               sdSizeBytes: photo.sdSizeBytes,
               createdAt: photo.createdAt,
             })),
@@ -511,12 +520,16 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
         if (!photoRes.ok) {
           const data = await photoRes.json().catch(() => ({}))
           console.error('[sync] Photo backup failed:', photoRes.status, data.error || photoRes.statusText)
-          syncError += (syncError ? '; ' : '') + `Photo backup failed: ${photoRes.status} ${data.error || photoRes.statusText}`
+          photoSyncError = `Photo backup failed: ${photoRes.status} ${data.error || photoRes.statusText}`
+          syncError += (syncError ? '; ' : '') + photoSyncError
           totalFailed += unsyncedPhotos.length
+          photoFailed = unsyncedPhotos.length
         } else {
           const data = await photoRes.json()
-          totalPushed += data.synced.length
-          totalFailed += data.failed.length
+          photoPushed = data.synced.length
+          photoFailed = data.failed.length
+          totalPushed += photoPushed
+          totalFailed += photoFailed
 
           for (const synced of data.synced as { id: number; notionPageId: string; notionFileUploadId: string }[]) {
             markPlantPhotoSynced(synced.id, synced.notionPageId, synced.notionFileUploadId)
@@ -524,9 +537,19 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
 
           if (data.failed.length > 0) {
             console.error('[sync] Failed photo backups:', data.failed)
+            photoSyncError = data.failed.map((failure: { id: number; error: string }) => `#${failure.id}: ${failure.error}`).join('; ')
           }
           refreshPhotos()
         }
+        insertPhotoSyncLog({
+          timestamp: new Date().toISOString(),
+          status: photoFailed > 0 ? 'error' : 'synced',
+          pushed: photoPushed,
+          failed: photoFailed,
+          totalSizeKb: Math.round(unsyncedPhotos.reduce((sum, photo) => sum + photo.hdSizeBytes, 0) / 1024),
+          durationMs: Date.now() - photoStartTime,
+          error: photoSyncError,
+        })
       }
 
       const finalStatus = (pullFailed || totalFailed > 0) ? 'error' : 'synced'
@@ -577,11 +600,11 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshEntries, refreshTags, refreshLogs, refreshPhotos])
 
-  const addPhoto = useCallback((photo: { tag: string; sdData: Uint8Array; sdMimeType: string; hdData: Uint8Array; hdMimeType: string }): number => {
-    const id = insertPlantPhoto(photo)
+  const addPhoto = useCallback((newPhotos: { tag: string; sdData: Uint8Array; sdMimeType: string; hdData: Uint8Array; hdMimeType: string }[]): number[] => {
+    const ids = newPhotos.map(insertPlantPhoto)
     refreshPhotos()
     if (navigator.onLine) syncToNotion()
-    return id
+    return ids
   }, [refreshPhotos, syncToNotion])
 
   const removePhoto = useCallback((id: number) => {
@@ -623,7 +646,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
       refreshEntries, addEntry, editEntry, removeEntry, search, filterEntries,
       getHierarchy: getHierarchyFn, getOpenIssues: getOpenIssuesFn, importData, clearData: clearDataFn, exportData, syncToNotion,
       tags, noteTypes, sourceTags, addTag: addTagFn, removeTag: removeTagFn, refreshTags,
-      syncLogs, dbStats, clearLogs: clearLogsFn, refreshLogs,
+      syncLogs, photoSyncLogs, dbStats, clearLogs: clearLogsFn, refreshLogs,
       photos, photoTags, addPhoto, removePhoto, refreshPhotos,
     }}>
       {children}

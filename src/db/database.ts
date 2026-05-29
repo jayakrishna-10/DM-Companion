@@ -1,5 +1,5 @@
 import initSqlJs, { type Database, type SqlValue } from 'sql.js'
-import type { LogEntry, NoteType, ObjectOption, PlantPhoto, Tag } from '@/types'
+import type { LogEntry, NoteType, ObjectOption, PhotoSyncLog, PlantPhoto, Tag } from '@/types'
 import { DEFAULT_NOTE_TYPES, getNoteTypeColor } from '@/types'
 
 let db: Database | null = null
@@ -100,6 +100,19 @@ function createTables(database: Database) {
     )
   `)
 
+  database.run(`
+    CREATE TABLE IF NOT EXISTS photo_sync_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      timestamp TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+      status TEXT NOT NULL,
+      pushed INTEGER DEFAULT 0,
+      failed INTEGER DEFAULT 0,
+      total_size_kb INTEGER DEFAULT 0,
+      duration_ms INTEGER DEFAULT 0,
+      error TEXT DEFAULT ''
+    )
+  `)
+
   database.run(`CREATE INDEX IF NOT EXISTS idx_entries_date ON log_entries(date DESC)`)
   database.run(`CREATE INDEX IF NOT EXISTS idx_entries_note_type ON log_entries(note_type)`)
   database.run(`CREATE INDEX IF NOT EXISTS idx_entries_object ON log_entries(object)`)
@@ -107,6 +120,7 @@ function createTables(database: Database) {
   database.run(`CREATE INDEX IF NOT EXISTS idx_photos_created ON plant_photos(created_at DESC)`)
   database.run(`CREATE INDEX IF NOT EXISTS idx_photos_tag ON plant_photos(tag)`)
   database.run(`CREATE INDEX IF NOT EXISTS idx_photos_synced ON plant_photos(synced)`)
+  database.run(`CREATE INDEX IF NOT EXISTS idx_photo_sync_logs_timestamp ON photo_sync_logs(timestamp DESC)`)
 
   const existing = database.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='schema_version'")
   if (existing.length === 0 || existing[0].values.length === 0) {
@@ -963,6 +977,36 @@ export function getSyncLogs(limit = 100): SyncLog[] {
   return result[0].values.map(rowToSyncLog)
 }
 
+function rowToPhotoSyncLog(row: unknown[]): PhotoSyncLog {
+  return {
+    id: row[0] as number,
+    timestamp: row[1] as string,
+    status: row[2] as string,
+    pushed: row[3] as number,
+    failed: row[4] as number,
+    totalSizeKb: row[5] as number,
+    durationMs: row[6] as number,
+    error: row[7] as string,
+  }
+}
+
+export function insertPhotoSyncLog(log: Omit<PhotoSyncLog, 'id'>): void {
+  const d = getDatabase()
+  d.run(
+    `INSERT INTO photo_sync_logs (timestamp, status, pushed, failed, total_size_kb, duration_ms, error)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [log.timestamp, log.status, log.pushed, log.failed, log.totalSizeKb, log.durationMs, log.error]
+  )
+  scheduleSave()
+}
+
+export function getPhotoSyncLogs(limit = 100): PhotoSyncLog[] {
+  const d = getDatabase()
+  const result = d.exec('SELECT * FROM photo_sync_logs ORDER BY id DESC LIMIT ?', [limit])
+  if (result.length === 0) return []
+  return result[0].values.map(rowToPhotoSyncLog)
+}
+
 export function getDbStats(): {
   totalEntries: number
   syncedEntries: number
@@ -973,6 +1017,9 @@ export function getDbStats(): {
   objectTypeTagCount: number
   objectGroupTagCount: number
   syncLogCount: number
+  photoSyncLogCount: number
+  photoCount: number
+  photoSizeKB: number
   dbSizeKB: number
 } {
   const d = getDatabase()
@@ -992,6 +1039,9 @@ export function getDbStats(): {
   const objectTypeTagCount = countResult("SELECT COUNT(*) FROM tags WHERE category = 'object_type'")
   const objectGroupTagCount = countResult("SELECT COUNT(*) FROM tags WHERE category = 'object_group'")
   const syncLogCount = countResult('SELECT COUNT(*) FROM sync_logs')
+  const photoSyncLogCount = countResult('SELECT COUNT(*) FROM photo_sync_logs')
+  const photoCount = countResult('SELECT COUNT(*) FROM plant_photos')
+  const photoSizeKB = Math.round(countResult('SELECT COALESCE(SUM(sd_size_bytes + hd_size_bytes), 0) FROM plant_photos') / 1024 * 10) / 10
 
   // Estimate DB size from exported data
   const data = d.export()
@@ -1000,12 +1050,13 @@ export function getDbStats(): {
   return {
     totalEntries, syncedEntries, unsyncedEntries,
     totalTags, noteTypeCount, sourceTagCount, objectTypeTagCount, objectGroupTagCount,
-    syncLogCount, dbSizeKB,
+    syncLogCount, photoSyncLogCount, photoCount, photoSizeKB, dbSizeKB,
   }
 }
 
 export function clearSyncLogs(): void {
   const d = getDatabase()
   d.run('DELETE FROM sync_logs')
+  d.run('DELETE FROM photo_sync_logs')
   scheduleSave()
 }
