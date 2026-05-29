@@ -70,7 +70,7 @@ export function Home() {
 
       {photos.length > 0 && (
         <section className="px-4 mb-5">
-          <button onClick={() => navigate('/photos')} className="mb-2 flex w-full items-center justify-between text-left">
+          <button onClick={() => navigate('/admin/photos')} className="mb-2 flex w-full items-center justify-between text-left">
             <h3 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider font-mono">
               EQUIPMENT PHOTOS
             </h3>
@@ -80,7 +80,7 @@ export function Home() {
           </button>
           <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 snap-x">
             {photos.slice(0, 12).map(photo => (
-              <PhotoCard key={photo.id} photo={photo} onClick={() => navigate(`/photos?id=${photo.id}`)} />
+              <PhotoCard key={photo.id} photo={photo} onClick={() => navigate(`/admin/photos?id=${photo.id}`)} />
             ))}
           </div>
         </section>

@@ -11,7 +11,7 @@ import type { PhotoFilterOptions, PlantPhoto } from '@/types'
 
 const syncOptions: PhotoFilterOptions['synced'][] = ['all', 'synced', 'unsynced']
 
-export function Photos() {
+export function Photos({ basePath = '/photos', compactHeader = false }: { basePath?: string; compactHeader?: boolean }) {
   const { photos, photoTags, addPhoto, updatePhoto, removePhoto, filterPhotos, refreshPhotos } = useDatabase()
   const location = useLocation()
   const navigate = useNavigate()
@@ -37,12 +37,12 @@ export function Photos() {
 
   const closeModal = () => {
     setManualSelected(null)
-    if (location.search) navigate('/photos', { replace: true })
+    if (location.search) navigate(basePath, { replace: true })
   }
 
   return (
     <div className="min-h-screen bg-neutral-950 pb-24">
-      <div className="sticky top-12 z-20 border-b border-neutral-900 bg-neutral-950/92 px-4 py-3 backdrop-blur">
+      <div className={`${compactHeader ? '' : 'sticky top-12 z-20 border-b border-neutral-900 bg-neutral-950/92'} px-4 py-3 backdrop-blur`}>
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-teal-400">Photo library</p>

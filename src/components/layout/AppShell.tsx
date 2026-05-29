@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation } from 'react-router'
-import { Home, Images, ListChecks, History, AlertTriangle, ScrollText } from 'lucide-react'
+import { Home, ListChecks, History, AlertTriangle, ScrollText, Users } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { SyncIndicator } from '@/components/ui/SyncIndicator'
 import { useDatabase } from '@/hooks/useDatabase'
@@ -7,10 +7,10 @@ import { useDatabase } from '@/hooks/useDatabase'
 const tabs = [
   { path: '/', icon: Home, label: 'Home' },
   { path: '/multi', icon: ListChecks, label: 'Multi' },
-  { path: '/photos', icon: Images, label: 'Photos' },
+  { path: '/profiles', icon: Users, label: 'Profiles' },
   { path: '/history', icon: History, label: 'History' },
   { path: '/issues', icon: AlertTriangle, label: 'Issues' },
-  { path: '/logs', icon: ScrollText, label: 'Logs' },
+  { path: '/admin', icon: ScrollText, label: 'Admin' },
 ]
 
 export function AppShell() {
