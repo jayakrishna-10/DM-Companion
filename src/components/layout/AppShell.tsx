@@ -10,7 +10,7 @@ const tabs = [
   { path: '/profiles', icon: Users, label: 'Profiles' },
   { path: '/history', icon: History, label: 'History' },
   { path: '/issues', icon: AlertTriangle, label: 'Issues' },
-  { path: '/logs', icon: ScrollText, label: 'Logs' },
+  { path: '/admin', icon: ScrollText, label: 'Admin' },
 ]
 
 export function AppShell() {

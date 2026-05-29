@@ -10,6 +10,8 @@ import { Equipment } from '@/pages/Equipment'
 import { Settings } from '@/pages/Settings'
 import { Logs } from '@/pages/Logs'
 import { Profiles } from '@/pages/Profiles'
+import { Photos } from '@/pages/Photos'
+import { Admin } from '@/pages/Admin'
 import { Toaster } from '@/components/ui/Toaster'
 
 export default function App() {
@@ -23,6 +25,9 @@ export default function App() {
             <Route path="/new" element={<NewEntry />} />
             <Route path="/multi" element={<MultiInput />} />
             <Route path="/profiles" element={<Profiles />} />
+            <Route path="/photos" element={<Photos />} />
+            <Route path="/admin" element={<Admin />} />
+            <Route path="/admin/photos" element={<Admin />} />
             <Route path="/history" element={<History />} />
             <Route path="/issues" element={<Issues />} />
             <Route path="/equipment" element={<Equipment />} />

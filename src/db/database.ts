@@ -1,5 +1,5 @@
 import initSqlJs, { type Database, type SqlValue } from 'sql.js'
-import type { LogEntry, NoteType, ObjectOption, PhotoSyncLog, PlantPhoto, Tag } from '@/types'
+import type { LogEntry, NoteType, ObjectOption, PhotoFilterOptions, PhotoSyncLog, PlantPhoto, Tag } from '@/types'
 import { DEFAULT_NOTE_TYPES, getNoteTypeColor } from '@/types'
 
 let db: Database | null = null
@@ -87,6 +87,7 @@ function createTables(database: Database) {
     CREATE TABLE IF NOT EXISTS plant_photos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       tag TEXT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
       sd_data BLOB NOT NULL,
       sd_mime_type TEXT NOT NULL DEFAULT 'image/jpeg',
       hd_data BLOB,
@@ -156,6 +157,7 @@ function migratePlantPhotos(database: Database) {
   if (!columnNames.has('notion_page_id')) migrations.push('ALTER TABLE plant_photos ADD COLUMN notion_page_id TEXT')
   if (!columnNames.has('notion_file_upload_id')) migrations.push('ALTER TABLE plant_photos ADD COLUMN notion_file_upload_id TEXT')
   if (!columnNames.has('synced')) migrations.push('ALTER TABLE plant_photos ADD COLUMN synced INTEGER NOT NULL DEFAULT 0')
+  if (!columnNames.has('note')) migrations.push("ALTER TABLE plant_photos ADD COLUMN note TEXT NOT NULL DEFAULT ''")
 
   for (const migration of migrations) database.run(migration)
 }
@@ -494,21 +496,25 @@ function rowToPhoto(row: unknown[]): PlantPhoto {
   return {
     id: row[0] as number,
     tag: row[1] as string,
-    sdData: row[2] as Uint8Array,
-    sdMimeType: row[3] as string,
-    hdData: row[4] as Uint8Array | null,
-    hdMimeType: row[5] as string,
-    sdSizeBytes: row[6] as number,
-    hdSizeBytes: row[7] as number,
-    notionPageId: row[8] as string | null,
-    notionFileUploadId: row[9] as string | null,
-    synced: row[10] as number,
-    createdAt: row[11] as string,
+    note: row[2] as string,
+    sdData: row[3] as Uint8Array,
+    sdMimeType: row[4] as string,
+    hdData: row[5] as Uint8Array | null,
+    hdMimeType: row[6] as string,
+    sdSizeBytes: row[7] as number,
+    hdSizeBytes: row[8] as number,
+    notionPageId: row[9] as string | null,
+    notionFileUploadId: row[10] as string | null,
+    synced: row[11] as number,
+    createdAt: row[12] as string,
   }
 }
 
+const PHOTO_COLUMNS = 'id, tag, note, sd_data, sd_mime_type, hd_data, hd_mime_type, sd_size_bytes, hd_size_bytes, notion_page_id, notion_file_upload_id, synced, created_at'
+
 export function insertPlantPhoto(photo: {
   tag: string
+  note?: string
   sdData: Uint8Array
   sdMimeType: string
   hdData: Uint8Array
@@ -517,9 +523,9 @@ export function insertPlantPhoto(photo: {
   const d = getDatabase()
   d.run(
     `INSERT INTO plant_photos
-      (tag, sd_data, sd_mime_type, hd_data, hd_mime_type, sd_size_bytes, hd_size_bytes)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [photo.tag.trim(), photo.sdData, photo.sdMimeType, photo.hdData, photo.hdMimeType, photo.sdData.byteLength, photo.hdData.byteLength]
+      (tag, note, sd_data, sd_mime_type, hd_data, hd_mime_type, sd_size_bytes, hd_size_bytes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [photo.tag.trim(), photo.note?.trim() || '', photo.sdData, photo.sdMimeType, photo.hdData, photo.hdMimeType, photo.sdData.byteLength, photo.hdData.byteLength]
   )
   const result = d.exec('SELECT last_insert_rowid() as id')
   const id = result[0].values[0][0] as number
@@ -527,9 +533,35 @@ export function insertPlantPhoto(photo: {
   return id
 }
 
-export function getPlantPhotos(limit = 24): PlantPhoto[] {
+export function getPlantPhotos(options: PhotoFilterOptions | number = 24): PlantPhoto[] {
   const d = getDatabase()
-  const result = d.exec('SELECT * FROM plant_photos ORDER BY id DESC LIMIT ?', [limit])
+  const opts: PhotoFilterOptions = typeof options === 'number' ? { limit: options } : options
+  const where: string[] = []
+  const params: SqlValue[] = []
+
+  if (opts.tag) {
+    where.push('tag = ?')
+    params.push(opts.tag)
+  }
+  if (opts.search?.trim()) {
+    const term = `%${opts.search.trim()}%`
+    where.push('(tag LIKE ? OR note LIKE ?)')
+    params.push(term, term)
+  }
+  if (opts.synced === 'synced') where.push('synced = 1')
+  if (opts.synced === 'unsynced') where.push('synced = 0')
+
+  const sortMap: Record<NonNullable<PhotoFilterOptions['sort']>, string> = {
+    date: 'created_at',
+    tag: 'tag COLLATE NOCASE',
+    size: '(sd_size_bytes + hd_size_bytes)',
+  }
+  const sort = sortMap[opts.sort || 'date']
+  const order = opts.order === 'asc' ? 'ASC' : 'DESC'
+  const limit = opts.limit ?? 200
+  params.push(limit)
+
+  const result = d.exec(`SELECT ${PHOTO_COLUMNS} FROM plant_photos ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY ${sort} ${order}, id DESC LIMIT ?`, params)
   if (result.length === 0) return []
   return result[0].values.map(rowToPhoto)
 }
@@ -543,9 +575,28 @@ export function getPlantPhotoTags(): string[] {
 
 export function getUnsyncedPlantPhotos(): PlantPhoto[] {
   const d = getDatabase()
-  const result = d.exec('SELECT * FROM plant_photos WHERE synced = 0 AND hd_data IS NOT NULL ORDER BY id ASC')
+  const result = d.exec(`SELECT ${PHOTO_COLUMNS} FROM plant_photos WHERE synced = 0 AND hd_data IS NOT NULL ORDER BY id ASC`)
   if (result.length === 0) return []
   return result[0].values.map(rowToPhoto)
+}
+
+export function updatePlantPhoto(id: number, photo: { tag?: string; note?: string }): void {
+  const d = getDatabase()
+  const updates: string[] = []
+  const params: SqlValue[] = []
+  if (photo.tag !== undefined) {
+    updates.push('tag = ?')
+    params.push(photo.tag.trim())
+  }
+  if (photo.note !== undefined) {
+    updates.push('note = ?')
+    params.push(photo.note.trim())
+  }
+  if (updates.length === 0) return
+  updates.push('synced = CASE WHEN hd_data IS NOT NULL THEN 0 ELSE synced END')
+  params.push(id)
+  d.run(`UPDATE plant_photos SET ${updates.join(', ')} WHERE id = ?`, params)
+  scheduleSave()
 }
 
 export function markPlantPhotoSynced(id: number, notionPageId: string, notionFileUploadId: string): void {

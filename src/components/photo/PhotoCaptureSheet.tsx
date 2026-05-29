@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Camera, Check, ImagePlus, Loader2, X } from 'lucide-react'
+import { Camera, Check, ImagePlus, Loader2, Plus, X } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { toast } from '@/components/ui/Toaster'
@@ -11,7 +11,7 @@ interface PhotoCaptureSheetProps {
   isOpen: boolean
   tags: string[]
   onClose: () => void
-  onSave: (photos: { tag: string; sdData: Uint8Array; sdMimeType: string; hdData: Uint8Array; hdMimeType: string }[]) => void
+  onSave: (photos: { tag: string; note?: string; sdData: Uint8Array; sdMimeType: string; hdData: Uint8Array; hdMimeType: string }[]) => void
 }
 
 async function blobToBytes(blob: Blob): Promise<Uint8Array> {
@@ -59,10 +59,15 @@ export function PhotoCaptureSheet({ isOpen, tags, onClose, onSave }: PhotoCaptur
   const inputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<File[]>([])
   const [tag, setTag] = useState('')
+  const [note, setNote] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
-  const quickTags = useMemo(() => tags.slice(0, 12), [tags])
+  const quickTags = useMemo(() => {
+    const query = tag.trim().toLowerCase()
+    return tags.filter(item => !query || item.toLowerCase().includes(query)).slice(0, 12)
+  }, [tag, tags])
   const previewUrls = useMemo(() => files.map((file) => URL.createObjectURL(file)), [files])
+  const canCreateTag = tag.trim() && !tags.some(item => item.toLowerCase() === tag.trim().toLowerCase())
 
   useEffect(() => {
     return () => previewUrls.forEach((url) => URL.revokeObjectURL(url))
@@ -71,6 +76,7 @@ export function PhotoCaptureSheet({ isOpen, tags, onClose, onSave }: PhotoCaptur
   const handleClose = () => {
     setFiles([])
     setTag('')
+    setNote('')
     setIsSaving(false)
     onClose()
   }
@@ -98,6 +104,7 @@ export function PhotoCaptureSheet({ isOpen, tags, onClose, onSave }: PhotoCaptur
         ])
         return {
           tag: photoName,
+          note: note.trim(),
           sdData: await blobToBytes(sdBlob),
           sdMimeType: sdBlob.type || 'image/jpeg',
           hdData: await blobToBytes(hdBlob),
@@ -175,15 +182,33 @@ export function PhotoCaptureSheet({ isOpen, tags, onClose, onSave }: PhotoCaptur
             />
           </div>
 
-          {quickTags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+          {(quickTags.length > 0 || canCreateTag) && (
+            <div className="rounded-2xl border border-teal-500/10 bg-teal-500/[0.04] p-2">
+              <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-neutral-500">Tag suggestions</p>
+              <div className="flex flex-wrap gap-2">
               {quickTags.map((item) => (
-                <button key={item} onClick={() => setTag(item)} className="rounded-full border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-xs text-neutral-300">
+                <button key={item} onClick={() => setTag(item)} className="rounded-full border border-teal-500/20 bg-teal-500/10 px-3 py-1.5 text-xs text-teal-100">
                   {item}
                 </button>
               ))}
+              {canCreateTag && (
+                <button onClick={() => setTag(tag.trim())} className="rounded-full border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-xs text-neutral-300">
+                  <Plus size={12} className="mr-1 inline" /> Create “{tag.trim()}”
+                </button>
+              )}
+              </div>
             </div>
           )}
+
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-neutral-500 font-mono">Note</label>
+            <textarea
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder="Describe what this photo shows..."
+              className="mt-2 h-20 w-full resize-none rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-teal-500/70 focus:outline-none"
+            />
+          </div>
 
           <div className="grid grid-cols-2 gap-3 pt-1">
             <Button variant="secondary" onClick={handleClose} disabled={isSaving}>Cancel</Button>

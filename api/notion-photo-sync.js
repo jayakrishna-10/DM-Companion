@@ -53,12 +53,19 @@ function buildPageProperties(schema, photo) {
     properties['Approx Size'] = { number: photo.approxSizeKb || Math.max(1, Math.round((photo.hdSizeBytes || 0) / 1024)) }
   }
 
+  if (photo.note && schema['Notes-Text Field']?.type === 'rich_text') {
+    properties['Notes-Text Field'] = { rich_text: [{ text: { content: photo.note } }] }
+  }
+
   for (const [name, prop] of Object.entries(schema)) {
     if (prop.type === 'date' && !properties[name]) {
       properties[name] = { date: { start: photo.createdAt?.slice(0, 10) || new Date().toISOString().slice(0, 10) } }
     }
     if (prop.type === 'rich_text' && /tag|name|equipment/i.test(name) && !properties[name]) {
       properties[name] = { rich_text: [{ text: { content: photoName } }] }
+    }
+    if (photo.note && prop.type === 'rich_text' && /note|notes|description|comment/i.test(name) && !properties[name]) {
+      properties[name] = { rich_text: [{ text: { content: photo.note } }] }
     }
     if (prop.type === 'number' && /approx|hd.*size|size.*hd/i.test(name) && !properties[name]) {
       properties[name] = { number: photo.approxSizeKb || Math.max(1, Math.round((photo.hdSizeBytes || 0) / 1024)) }
