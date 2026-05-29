@@ -21,7 +21,7 @@ function formatDate(dateStr: string): string {
 }
 
 export function Home() {
-  const { isReady, entries, removeEntry, photos, photoTags, addPhoto, removePhoto } = useDatabase()
+  const { isReady, entries, removeEntry, photos, photoTags, addPhoto, removePhoto, getOpenIssues, syncStatus } = useDatabase()
   const [selectedEntry, setSelectedEntry] = useState<LogEntry | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false)
@@ -37,6 +37,8 @@ export function Home() {
 
   const todayKey = new Date().toISOString().split('T')[0]
   const todayEntries = sortedEntries.get(todayKey) || []
+  const openIssues = isReady ? getOpenIssues().filter(issue => !issue.resolved) : []
+  const pendingPhotos = photos.filter(photo => !photo.synced).length
 
   const handleObjectClick = (objectName: string) => {
     navigate(`/equipment?object=${encodeURIComponent(objectName)}`)
@@ -45,39 +47,54 @@ export function Home() {
   if (!isReady) return <HomeSkeleton />
 
   return (
-    <div className="pb-4 bg-neutral-950 min-h-screen">
-      <div className="px-4 pt-4 pb-3">
-        <div className="grid grid-cols-2 gap-3">
+    <div className="page-shell">
+      <div className="content-grid space-y-5">
+        <section className="overflow-hidden rounded-3xl border border-slate-4/70 bg-[radial-gradient(circle_at_top_left,rgba(6,182,212,0.18),transparent_42%),linear-gradient(145deg,rgba(28,28,36,0.96),rgba(5,5,7,0.92))] p-4 shadow-2xl shadow-black/30 lg:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="section-label text-cyan-light">Operator dashboard</p>
+              <h2 className="mt-2 font-display text-3xl font-black tracking-tight text-heading lg:text-5xl">Today's shift log</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted">Capture field events, attach equipment photos, and keep Notion sync visible without leaving the local-first logbook.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:flex">
+              <StatusTile label="Today" value={todayEntries.length} tone="cyan" />
+              <StatusTile label="Open issues" value={openIssues.length} tone={openIssues.length > 0 ? 'rose' : 'emerald'} />
+              <StatusTile label="Photos queued" value={pendingPhotos} tone={pendingPhotos > 0 ? 'amber' : 'slate'} />
+              <StatusTile label="Sync" value={syncStatus} tone={syncStatus === 'error' ? 'amber' : syncStatus === 'offline' ? 'slate' : 'emerald'} />
+            </div>
+          </div>
+        </section>
+
+        <div className="grid grid-cols-2 gap-3 lg:max-w-xl">
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={() => navigate('/new')}
-            className="gradient-cta rounded-xl p-4 flex items-center justify-center gap-2 text-white font-semibold shadow-lg shadow-teal-500/10"
+            className="min-h-16 rounded-2xl bg-cyan p-4 font-display text-base font-black text-obsidian shadow-xl shadow-cyan-glow transition-all hover:brightness-110 flex items-center justify-center gap-2"
           >
             <Plus size={21} strokeWidth={2.5} />
-            Add Log
+            Log Event
           </motion.button>
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={() => setPhotoSheetOpen(true)}
-            className="rounded-xl p-4 flex items-center justify-center gap-2 text-neutral-100 font-semibold border border-neutral-800 bg-neutral-900 shadow-lg shadow-black/20"
+            className="min-h-16 rounded-2xl border border-slate-4 bg-slate-2 p-4 font-semibold text-heading shadow-xl shadow-black/20 transition-all hover:border-cyan/30 flex items-center justify-center gap-2"
           >
             <Camera size={21} strokeWidth={2.5} />
-            Take Photo
+            Capture Photo
           </motion.button>
         </div>
-      </div>
 
       {photos.length > 0 && (
-        <section className="px-4 mb-5">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider font-mono">
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="section-label">
               EQUIPMENT PHOTOS
             </h3>
-            <span className="text-[9px] text-neutral-600 font-medium bg-neutral-800/80 px-1.5 py-0.5 rounded-md border border-neutral-800">
+            <span className="rounded-md border border-slate-4 bg-slate-3/80 px-2 py-0.5 font-data text-[10px] font-bold text-label">
               {photos.length}
             </span>
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 snap-x">
+          <div className="flex gap-3 overflow-x-auto pb-1 snap-x">
             {photos.slice(0, 12).map(photo => (
               <PhotoCard key={photo.id} photo={photo} onDelete={(id) => { removePhoto(id); toast('Photo deleted') }} />
             ))}
@@ -86,12 +103,12 @@ export function Home() {
       )}
 
       {todayEntries.length > 0 && (
-        <div className="px-4 mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider font-mono">
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="section-label">
               TODAY
             </h3>
-            <span className="text-[9px] text-neutral-600 font-medium bg-neutral-800/80 px-1.5 py-0.5 rounded-md border border-neutral-800">
+            <span className="rounded-md border border-slate-4 bg-slate-3/80 px-2 py-0.5 font-data text-[10px] font-bold text-label">
               {todayEntries.length}
             </span>
           </div>
@@ -108,7 +125,7 @@ export function Home() {
               ))}
             </AnimatePresence>
           </TimelineLine>
-        </div>
+        </section>
       )}
 
       {Array.from(sortedEntries.entries())
@@ -120,9 +137,9 @@ export function Home() {
       }
 
       {sortedEntries.size === 0 && (
-        <div className="px-4 py-16 text-center">
-          <p className="text-neutral-500 text-base">No entries yet</p>
-          <p className="text-neutral-600 text-sm mt-1">Tap the button above to add your first log entry</p>
+        <div className="rounded-3xl border border-dashed border-slate-4 bg-slate-2/50 px-6 py-14 text-center">
+          <p className="font-display text-xl font-black text-heading">No entries yet</p>
+          <p className="mt-2 text-sm text-text-muted">Start today's shift record with a log event or equipment photo.</p>
         </div>
       )}
 
@@ -151,6 +168,23 @@ export function Home() {
         onClose={() => setPhotoSheetOpen(false)}
         onSave={addPhoto}
       />
+      </div>
+    </div>
+  )
+}
+
+function StatusTile({ label, value, tone }: { label: string; value: number | string; tone: 'cyan' | 'rose' | 'amber' | 'emerald' | 'slate' }) {
+  const tones = {
+    cyan: 'text-cyan-light border-cyan/20 bg-cyan/10',
+    rose: 'text-rose-light border-rose/20 bg-rose/10',
+    amber: 'text-amber-light border-amber/20 bg-amber/10',
+    emerald: 'text-emerald-light border-emerald/20 bg-emerald/10',
+    slate: 'text-text-muted border-slate-4 bg-slate-3/70',
+  }
+  return (
+    <div className={`rounded-2xl border px-3 py-2 ${tones[tone]}`}>
+      <p className="font-data text-[9px] font-bold uppercase tracking-[0.16em] opacity-80">{label}</p>
+      <p className="mt-1 font-display text-xl font-black tabular capitalize">{value}</p>
     </div>
   )
 }
@@ -167,18 +201,18 @@ function PhotoCard({ photo, onDelete }: { photo: PlantPhoto; onDelete: (id: numb
   }, [url])
 
   return (
-    <div className="relative w-36 flex-shrink-0 snap-start rounded-2xl border border-neutral-800 bg-neutral-900 overflow-hidden">
-      <div className="aspect-square bg-neutral-950">
+    <div className="relative w-40 flex-shrink-0 snap-start overflow-hidden rounded-2xl border border-slate-4 bg-slate-2 shadow-lg shadow-black/20">
+      <div className="aspect-square bg-obsidian">
         {url && <img src={url} alt={photo.tag} className="h-full w-full object-cover" />}
       </div>
       <div className="p-2">
-        <p className="text-xs font-medium text-neutral-200 truncate" title={photo.tag}>{photo.tag}</p>
-        <div className="mt-1 flex items-center justify-between text-[10px] text-neutral-500">
+        <p className="truncate text-xs font-bold text-heading" title={photo.tag}>{photo.tag}</p>
+        <div className="mt-1 flex items-center justify-between font-data text-[10px] text-label">
           <span>{Math.max(1, Math.round(photo.sdSizeBytes / 1024))} KB</span>
           {photo.synced ? <CheckCircle2 size={12} className="text-emerald-400" /> : <CloudOff size={12} className="text-amber-400" />}
         </div>
       </div>
-      <button onClick={() => onDelete(photo.id)} className="absolute right-1.5 top-1.5 h-7 w-7 rounded-full bg-black/60 text-neutral-300 flex items-center justify-center backdrop-blur">
+      <button aria-label={`Delete photo ${photo.tag}`} onClick={() => onDelete(photo.id)} className="absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-neutral-300 backdrop-blur transition-colors hover:text-white">
         <Trash2 size={13} />
       </button>
     </div>
@@ -190,15 +224,15 @@ function CollapsibleGroup({ date, entries, onEntryClick }: { date: string; entri
   const navigate = useNavigate()
 
   return (
-    <div className="px-4 mb-3">
-      <button onClick={() => setIsOpen(!isOpen)} className="w-full flex items-center gap-2 py-2">
+    <div className="mb-3">
+      <button onClick={() => setIsOpen(!isOpen)} className="flex w-full items-center gap-2 rounded-xl py-2 text-left transition-colors hover:text-heading">
         <motion.svg animate={{ rotate: isOpen ? 90 : 0 }} transition={{ duration: 0.15 }} width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-neutral-500 flex-shrink-0">
           <path d="M4 2L8 6L4 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </motion.svg>
-        <span className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider font-mono flex-1 text-left">
+        <span className="section-label flex-1 text-left">
           {formatDate(date)}
         </span>
-        <span className="text-[9px] text-neutral-600 font-medium bg-neutral-800/80 px-1.5 py-0.5 rounded-md border border-neutral-800">
+        <span className="rounded-md border border-slate-4 bg-slate-3/80 px-2 py-0.5 font-data text-[10px] font-bold text-label">
           {entries.length}
         </span>
       </button>

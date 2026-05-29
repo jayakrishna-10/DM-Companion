@@ -222,9 +222,26 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 p-4 bg-neutral-950 min-h-screen">
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Note Type</label>
+    <form onSubmit={handleSubmit} className="page-shell">
+      <div className="content-grid max-w-3xl space-y-5">
+      <section className="rounded-3xl border border-slate-4/70 bg-[radial-gradient(circle_at_top_left,rgba(6,182,212,0.15),transparent_38%),linear-gradient(145deg,rgba(28,28,36,0.94),rgba(5,5,7,0.92))] p-4 lg:p-5">
+        <p className="section-label text-cyan-light">{editId !== undefined ? 'Editing saved event' : 'Command capture'}</p>
+        <h2 className="mt-2 font-display text-3xl font-black tracking-tight text-heading">{editId !== undefined ? `Update entry #${editId}` : 'Log a plant event'}</h2>
+        <p className="mt-2 text-sm leading-relaxed text-text-muted">Write the event first. DM Companion will suggest type and asset tags, then save locally before sync.</p>
+      </section>
+
+      <section className="metric-card space-y-4 p-4">
+        <TextArea
+          label="Event note *"
+          value={note}
+          onChange={e => setNote(e.target.value)}
+          placeholder="Describe the activity, complaint, or abnormality..."
+          className="min-h-[150px] text-base leading-relaxed"
+        />
+      </section>
+
+      <section className="metric-card space-y-3 p-4">
+        <label className="section-label">Note Type</label>
         <SegmentedControl
           value={noteType}
           onChange={setNoteType}
@@ -240,40 +257,40 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               onClick={applyNoteTypeSuggestion}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-teal-500/10 border border-teal-500/20 text-xs hover:bg-teal-500/20 transition-colors w-full text-left"
+              className="flex w-full items-center gap-2 rounded-xl border border-cyan/20 bg-cyan/10 px-3 py-2 text-left text-xs transition-colors hover:bg-cyan/15"
             >
-              <Sparkles size={12} className="text-teal-400 shrink-0" />
-              <span className="text-neutral-400">Detected:</span>
+              <Sparkles size={12} className="shrink-0 text-cyan-light" />
+              <span className="text-text-muted">Detected:</span>
               <span
                 className="font-semibold"
                 style={{ color: getNoteTypeColor(suggestions.noteType!) }}
               >
                 {suggestions.noteType}
               </span>
-              <span className="text-neutral-400 ml-auto">tap to apply</span>
+              <span className="ml-auto text-label">tap to apply</span>
             </motion.button>
           )}
         </AnimatePresence>
-      </div>
+      </section>
 
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Equipment</label>
+      <section className="metric-card space-y-3 p-4">
+        <label className="section-label">Equipment</label>
         <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-label" />
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search equipment (P2-4, R5-C...)"
-            className="w-full h-10 pl-9 pr-3 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-sm focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20 transition-all"
+            className="w-full min-h-11 rounded-xl border border-slate-4 bg-slate-1 pl-9 pr-3 text-sm text-body placeholder:text-label/60 transition-all focus:border-cyan/50 focus:outline-none focus:shadow-[0_0_0_3px_var(--color-cyan-glow)]"
           />
           {object && !searchQuery && (
             <button
               type="button"
               onClick={() => { setObject(''); setObjectGroup(''); setObjectType('') }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 text-xs"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-label hover:text-heading"
             >
-              ✕
+              Clear
             </button>
           )}
         </div>
@@ -292,11 +309,11 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
                   key={obj.object}
                   type="button"
                   onClick={() => applyObjectSuggestion(obj)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-teal-500/10 border border-teal-500/20 text-xs hover:bg-teal-500/20 transition-colors"
+                  className="flex items-center gap-1 rounded-xl border border-cyan/20 bg-cyan/10 px-2.5 py-1.5 text-xs transition-colors hover:bg-cyan/15"
                 >
-                  <Sparkles size={10} className="text-teal-400" />
-                  <span className="text-teal-400 font-medium">{obj.object}</span>
-                  <span className="text-neutral-400">{obj.objectGroup}</span>
+                  <Sparkles size={10} className="text-cyan-light" />
+                  <span className="font-bold text-cyan-light">{obj.object}</span>
+                  <span className="text-text-muted">{obj.objectGroup}</span>
                 </button>
               ))}
             </motion.div>
@@ -309,17 +326,17 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
-              className="rounded-lg border border-neutral-800/50 bg-neutral-900/60 overflow-hidden"
+              className="overflow-hidden rounded-xl border border-slate-4 bg-slate-1"
             >
               {searchResults.map((obj, i) => (
                 <button
                   key={`${obj.objectGroup}-${obj.object}-${i}`}
                   type="button"
                   onClick={() => handleObjectSelect(obj)}
-                  className="w-full text-left px-3 py-2 hover:bg-neutral-800/40 transition-colors border-b border-neutral-800/50 last:border-0"
+                  className="w-full border-b border-slate-4/60 px-3 py-2 text-left transition-colors last:border-0 hover:bg-slate-3/70"
                 >
-                  <span className="text-sm text-neutral-200 font-medium">{obj.object}</span>
-                  <span className="text-xs text-neutral-400 ml-2">{obj.objectGroup} · {obj.objectType}</span>
+                  <span className="text-sm font-bold text-heading">{obj.object}</span>
+                  <span className="ml-2 text-xs text-text-muted">{obj.objectGroup} · {obj.objectType}</span>
                 </button>
               ))}
             </motion.div>
@@ -327,18 +344,18 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
         </AnimatePresence>
 
         {object && !searchQuery && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-teal-500/10 border border-teal-500/20">
-            <span className="text-sm text-teal-400 font-medium">{object}</span>
-            <span className="text-xs text-neutral-400">{objectGroup} · {objectType}</span>
+          <div className="flex items-center gap-2 rounded-xl border border-cyan/20 bg-cyan/10 px-3 py-2">
+            <span className="text-sm font-bold text-cyan-light">{object}</span>
+            <span className="text-xs text-text-muted">{objectGroup} · {objectType}</span>
           </div>
         )}
 
         <button
           type="button"
           onClick={() => setShowDropdowns(!showDropdowns)}
-          className="flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
+          className="flex items-center gap-1 text-xs font-bold text-label transition-colors hover:text-heading"
         >
-          {showDropdowns ? '▼' : '►'} Or select by category
+          {showDropdowns ? 'Hide taxonomy builder' : 'Open taxonomy builder'}
         </button>
 
         <AnimatePresence>
@@ -372,14 +389,14 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
                       if (e.key === 'Escape') { setShowAddObjectType(false); setNewObjectTypeName('') }
                     }}
                     placeholder="New object type..."
-                    className="flex-1 h-9 px-2.5 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
+                    className="flex-1 min-h-9 rounded-xl border border-slate-4 bg-slate-1 px-3 text-xs text-body placeholder:text-label/60 focus:border-cyan/50 focus:outline-none"
                     autoFocus
                   />
                   <button
                     type="button"
                     onClick={handleAddObjectType}
                     disabled={!newObjectTypeName.trim()}
-                    className="h-9 w-9 flex items-center justify-center rounded-lg bg-teal-500 text-white text-xs disabled:opacity-50 transition-opacity"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan text-obsidian disabled:opacity-50"
                   >
                     <Check size={14} />
                   </button>
@@ -410,14 +427,14 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
                           if (e.key === 'Escape') { setShowAddObjectGroup(false); setNewObjectGroupName('') }
                         }}
                         placeholder="New object group..."
-                        className="flex-1 h-9 px-2.5 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
+                        className="flex-1 min-h-9 rounded-xl border border-slate-4 bg-slate-1 px-3 text-xs text-body placeholder:text-label/60 focus:border-cyan/50 focus:outline-none"
                         autoFocus
                       />
                       <button
                         type="button"
                         onClick={handleAddObjectGroup}
                         disabled={!newObjectGroupName.trim()}
-                        className="h-9 w-9 flex items-center justify-center rounded-lg bg-teal-500 text-white text-xs disabled:opacity-50 transition-opacity"
+                        className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan text-obsidian disabled:opacity-50"
                       >
                         <Check size={14} />
                       </button>
@@ -450,14 +467,14 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
                           if (e.key === 'Escape') { setShowAddObject(false); setNewObjectName('') }
                         }}
                         placeholder="New object name..."
-                        className="flex-1 h-9 px-2.5 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
+                        className="flex-1 min-h-9 rounded-xl border border-slate-4 bg-slate-1 px-3 text-xs text-body placeholder:text-label/60 focus:border-cyan/50 focus:outline-none"
                         autoFocus
                       />
                       <button
                         type="button"
                         onClick={handleAddObject}
                         disabled={!newObjectName.trim()}
-                        className="h-9 w-9 flex items-center justify-center rounded-lg bg-teal-500 text-white text-xs disabled:opacity-50 transition-opacity"
+                        className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan text-obsidian disabled:opacity-50"
                       >
                         <Check size={14} />
                       </button>
@@ -468,22 +485,15 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </section>
 
+      <section className="metric-card grid gap-4 p-4 sm:grid-cols-2">
       <Input
         label="Date"
         type="date"
         value={date}
         onChange={e => setDate(e.target.value)}
       />
-
-      <TextArea
-        label="Note *"
-        value={note}
-        onChange={e => setNote(e.target.value)}
-        placeholder="Describe the activity, complaint, or abnormality..."
-      />
-
       <div className="space-y-1.5">
         <Select
           label="Source"
@@ -510,14 +520,14 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
                   if (e.key === 'Escape') { setShowAddSource(false); setNewSourceName('') }
                 }}
                 placeholder="New source name..."
-                className="flex-1 h-9 px-2.5 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
+                className="flex-1 min-h-9 rounded-xl border border-slate-4 bg-slate-1 px-3 text-xs text-body placeholder:text-label/60 focus:border-cyan/50 focus:outline-none"
                 autoFocus
               />
               <button
                 type="button"
                 onClick={handleAddSource}
                 disabled={!newSourceName.trim()}
-                className="h-9 w-9 flex items-center justify-center rounded-lg bg-teal-500 text-white text-xs disabled:opacity-50 transition-opacity"
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan text-obsidian disabled:opacity-50"
               >
                 <Check size={14} />
               </button>
@@ -525,6 +535,7 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
           )}
         </AnimatePresence>
       </div>
+      </section>
 
       <Button
         type="submit"
@@ -535,6 +546,7 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
       >
         {isSubmitting ? 'Saving...' : 'Save Entry'}
       </Button>
+      </div>
     </form>
   )
 }

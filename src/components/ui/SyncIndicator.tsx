@@ -9,10 +9,10 @@ interface SyncIndicatorProps {
 
 export function SyncIndicator({ status, lastSyncTime, onSync }: SyncIndicatorProps) {
   const config = {
-    synced: { icon: Check, color: 'text-resolved-light', label: 'Synced' },
-    syncing: { icon: Loader2, color: 'text-activity-light', label: 'Syncing' },
-    offline: { icon: WifiOff, color: 'text-text-muted', label: 'Offline' },
-    error: { icon: AlertTriangle, color: 'text-abnormality-light', label: 'Error' },
+    synced: { icon: Check, color: 'text-emerald-light', label: 'Synced', surface: 'border-emerald/20 bg-emerald/10' },
+    syncing: { icon: Loader2, color: 'text-cyan-light', label: 'Syncing', surface: 'border-cyan/20 bg-cyan/10' },
+    offline: { icon: WifiOff, color: 'text-label', label: 'Offline', surface: 'border-slate-4 bg-slate-3/70' },
+    error: { icon: AlertTriangle, color: 'text-amber-light', label: 'Error', surface: 'border-amber/20 bg-amber/10' },
   }[status]
 
   const Icon = config.icon
@@ -21,14 +21,15 @@ export function SyncIndicator({ status, lastSyncTime, onSync }: SyncIndicatorPro
     <button
       onClick={onSync}
       disabled={status === 'syncing'}
-      className="flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors hover:bg-white/5 active:bg-white/10 disabled:opacity-60 disabled:cursor-not-allowed"
+      className={`flex min-h-10 items-center gap-1.5 rounded-xl border px-3 transition-colors hover:brightness-110 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-60 ${config.surface}`}
       title={status === 'syncing' ? 'Syncing...' : 'Click to sync'}
+      aria-label={status === 'syncing' ? 'Sync in progress' : 'Sync with Notion'}
     >
       <Icon
         size={14}
         className={`${config.color} ${status === 'syncing' ? 'animate-spin' : ''}`}
       />
-      <span className={`text-xs font-medium ${config.color}`}>
+      <span className={`font-data text-[10px] font-bold uppercase tracking-[0.08em] ${config.color}`}>
         {lastSyncTime ? `${config.label} · ${lastSyncTime}` : config.label}
       </span>
     </button>

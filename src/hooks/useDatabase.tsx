@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components, react-hooks/set-state-in-effect */
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import { initDatabase, getDatabase, insertEntry, insertEntryFromNotion, updateEntry, updateEntryFromNotion, deleteEntry, getEntriesByDate, getEntryCountsByType, searchEntries, getEntries, importFromCSV, clearAllData, exportAllEntries, getObjectHierarchy, getUnsyncedEntries, getExistingNotionPageIds, getEntryByNotionPageId, markAsSynced, isDuplicateEntry, deleteNotionRemovedEntries, getOpenIssues, getTags, getNoteTypes, getSourceTags, addTag, deleteTag, upsertTagsFromNotion, upsertEntryTags, insertSyncLog, getSyncLogs, getDbStats, clearSyncLogs, insertPlantPhoto, getPlantPhotos, getPlantPhotoTags, getUnsyncedPlantPhotos, markPlantPhotoSynced, deletePlantPhoto, insertPhotoSyncLog, getPhotoSyncLogs } from '@/db/database'
 import { seedDatabase } from '@/db/seed'

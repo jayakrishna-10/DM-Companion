@@ -9,31 +9,55 @@ interface ButtonProps {
   onClick?: () => void
   disabled?: boolean
   type?: 'button' | 'submit' | 'reset'
+  ariaLabel?: string
 }
 
-export function Button({ variant = 'secondary', size = 'md', className = '', children, onClick, disabled, type = 'button' }: ButtonProps) {
-  const base = 'inline-flex items-center justify-center font-medium rounded-xl transition-all duration-150 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none select-none'
-  
+export function Button({ variant = 'secondary', size = 'md', className = '', children, onClick, disabled, type = 'button', ariaLabel }: ButtonProps) {
+  const base = 'inline-flex items-center justify-center font-semibold rounded-xl transition-all duration-150 select-none'
+
   const variants = {
-    primary: 'bg-teal-500 hover:bg-teal-400 text-white shadow-lg shadow-teal-500/20',
-    secondary: 'bg-neutral-800/80 text-neutral-200 border border-neutral-700 hover:bg-neutral-800 hover:border-neutral-600',
-    ghost: 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/60',
-    danger: 'bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20',
+    primary: 'bg-cyan text-obsidian shadow-lg shadow-cyan-glow hover:brightness-110 active:brightness-90',
+    secondary: 'bg-slate-3 border border-slate-4 text-body hover:border-cyan/30 hover:text-heading active:bg-slate-4',
+    ghost: 'text-label hover:text-body hover:bg-slate-3/60 active:bg-slate-3',
+    danger: 'bg-rose/10 text-rose-light border border-rose/20 hover:bg-rose/20 active:bg-rose/30',
   }
 
   const sizes = {
-    sm: 'h-8 px-3 text-xs gap-1.5',
-    md: 'h-10 px-4 text-sm gap-2',
-    lg: 'h-12 px-6 text-base gap-2',
+    sm: 'min-h-9 px-3 text-xs gap-1.5',
+    md: 'min-h-11 px-4 text-sm gap-2',
+    lg: 'min-h-12 px-6 text-base gap-2',
   }
 
   return (
     <motion.button
-      whileTap={{ scale: 0.97 }}
+      whileTap={{ scale: 0.98 }}
       className={`${base} ${variants[variant]} ${sizes[size]} ${className}`}
       onClick={onClick}
       disabled={disabled}
       type={type}
+      aria-label={ariaLabel}
+    >
+      {children}
+    </motion.button>
+  )
+}
+
+interface IconButtonProps {
+  children: ReactNode
+  onClick?: () => void
+  disabled?: boolean
+  className?: string
+  ariaLabel: string
+}
+
+export function IconButton({ children, onClick, disabled, className = '', ariaLabel }: IconButtonProps) {
+  return (
+    <motion.button
+      whileTap={{ scale: 0.92 }}
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      className={`inline-flex items-center justify-center min-h-11 min-w-11 rounded-xl text-label hover:text-body hover:bg-slate-3/60 active:bg-slate-3 transition-colors disabled:opacity-40 ${className}`}
     >
       {children}
     </motion.button>

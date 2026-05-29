@@ -4,9 +4,11 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { resolve } from 'path'
 
-// PWA plugin causes build failures on paths with parentheses/special chars
-// Enable only in CI/Vercel where paths are clean
-const enablePWA = process.env.DISABLE_PWA !== 'true'
+// Workbox currently emits invalid import strings when the local checkout path
+// contains an apostrophe (for example this workspace: "Claude's Playground").
+// Keep PWA enabled for CI/Vercel/normal paths, but allow local builds to pass
+// in apostrophe-containing directories without changing production behavior.
+const enablePWA = process.env.DISABLE_PWA !== 'true' && !process.cwd().includes("'")
 
 export default defineConfig({
   plugins: [
@@ -39,8 +41,5 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, './src'),
     },
-  },
-  optimizeDeps: {
-    exclude: ['sql.js'],
   },
 })

@@ -68,11 +68,11 @@ export function SegmentedControl({ value, onChange, noteTypes, onAddType }: Segm
   }
 
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-1.5">
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
         <div
           ref={containerRef}
-          className="relative flex bg-neutral-900/60 border-neutral-800/50 rounded-xl p-1 flex-1"
+          className="relative flex bg-slate-1 border border-slate-4 rounded-xl p-1 flex-1 overflow-x-auto"
           style={{ scrollbarWidth: 'none' }}
         >
           {noteTypes.map((type) => (
@@ -80,11 +80,10 @@ export function SegmentedControl({ value, onChange, noteTypes, onAddType }: Segm
               key={type}
               data-type={type}
               onClick={() => onChange(type)}
-              className="relative h-8 text-xs font-semibold tracking-wide rounded-lg transition-colors duration-150 z-10 flex items-center justify-center gap-1 flex-1 min-w-0"
+              className="relative min-h-9 text-xs font-bold tracking-wide rounded-lg transition-colors duration-150 z-10 flex items-center justify-center gap-1.5 flex-1 min-w-0 px-2"
               style={{ color: value === type ? '#fff' : getNoteTypeColor(type) }}
             >
               <span className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: getNoteTypeColor(type) }} />
-              {/* Short label on mobile, full label on sm+ screens */}
               <span className="sm:hidden truncate">{getShortLabel(type)}</span>
               <span className="hidden sm:inline truncate">{type}</span>
             </button>
@@ -101,8 +100,9 @@ export function SegmentedControl({ value, onChange, noteTypes, onAddType }: Segm
         {onAddType && (
           <button
             onClick={() => setShowInput(!showInput)}
-            className="flex-shrink-0 w-7 h-7 rounded-full bg-neutral-800/80 border-neutral-800 text-neutral-400 flex items-center justify-center text-xs hover:text-neutral-200 transition-colors"
+            className="flex-shrink-0 min-h-9 min-w-9 rounded-xl bg-slate-3 border border-slate-4 text-label flex items-center justify-center text-xs hover:text-body hover:border-slate-5 transition-colors"
             title="Add note type"
+            aria-label="Add note type"
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="6" y1="1" x2="6" y2="11" />
@@ -112,7 +112,7 @@ export function SegmentedControl({ value, onChange, noteTypes, onAddType }: Segm
         )}
       </div>
       {showInput && (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <input
             ref={inputRef}
             type="text"
@@ -120,12 +120,12 @@ export function SegmentedControl({ value, onChange, noteTypes, onAddType }: Segm
             onChange={e => setNewTypeName(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="New note type name..."
-            className="flex-1 h-8 px-3 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
+            className="flex-1 min-h-9 px-3 rounded-xl bg-slate-1 border border-slate-4 text-body placeholder:text-label/50 text-xs focus:outline-none focus:border-cyan/50 focus:shadow-[0_0_0_3px_var(--color-cyan-glow)]"
           />
           <button
             onClick={handleAddType}
             disabled={!newTypeName.trim()}
-            className="h-8 px-3 rounded-lg bg-teal-500 text-white text-xs font-semibold disabled:opacity-40 hover:bg-teal-400 transition-colors"
+            className="min-h-9 px-3 rounded-xl bg-cyan text-obsidian text-xs font-bold disabled:opacity-40 hover:brightness-110 transition-all"
           >
             Add
           </button>

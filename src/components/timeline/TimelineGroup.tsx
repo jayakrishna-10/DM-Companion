@@ -23,17 +23,17 @@ export function TimelineGroup({ date, label, entries }: TimelineGroupProps) {
   return (
     <div>
       {/* Date header */}
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider font-mono">
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="section-label">
           {label || formatTimestamp(date)}
         </h3>
-        <span className="text-[9px] text-neutral-600 font-medium bg-neutral-800/80 px-1.5 py-0.5 rounded-md border border-neutral-800">
+        <span className="rounded-md border border-slate-4 bg-slate-3/80 px-2 py-0.5 font-data text-[10px] font-bold text-label">
           {entries.length}
         </span>
       </div>
 
       {/* Timeline with left anchor line */}
-      <div className="relative pl-4 border-l border-neutral-800">
+      <div className="timeline-line">
         <AnimatePresence>
           {/* Cards rendered by parent via children or map */}
         </AnimatePresence>
@@ -46,7 +46,7 @@ export function TimelineGroup({ date, label, entries }: TimelineGroupProps) {
  *  cards are rendered by the parent inside this container. */
 export function TimelineLine({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative pl-4 border-l border-neutral-800">
+    <div className="timeline-line">
       {children}
     </div>
   )

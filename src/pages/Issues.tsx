@@ -51,10 +51,11 @@ export function Issues() {
   }, [displayIssues])
 
   return (
-    <div className="flex flex-col h-full bg-neutral-950">
-      {/* Summary cards */}
-      <div className="px-4 pt-4 pb-3">
-        <div className="grid grid-cols-3 gap-2">
+    <div className="page-shell">
+      <div className="content-grid space-y-5">
+      <section className="rounded-3xl border border-rose/15 bg-[radial-gradient(circle_at_top_left,rgba(244,63,94,0.16),transparent_38%),linear-gradient(145deg,rgba(28,28,36,0.92),rgba(5,5,7,0.92))] p-4 lg:p-5">
+        <p className="section-label text-rose-light">Alert console</p>
+        <div className="mt-3 grid grid-cols-3 gap-2 lg:gap-3">
           <SummaryCard
             label="Open Complaints"
             count={openComplaints}
@@ -71,11 +72,9 @@ export function Issues() {
             color="#22C55E"
           />
         </div>
-      </div>
+      </section>
 
-      {/* Filter tabs */}
-      <div className="px-4 pb-2">
-        <div className="flex gap-1.5">
+      <section className="flex gap-2">
           <TabButton
             label="Open"
             count={openIssues.length}
@@ -88,28 +87,27 @@ export function Issues() {
             active={tab === 'resolved'}
             onClick={() => setTab('resolved')}
           />
-        </div>
-      </div>
+      </section>
 
-      {/* Issue list */}
-      <div className="flex-1 overflow-y-auto px-4 pb-24">
+      <section>
         {displayIssues.length === 0 ? (
-          <div className="py-16 text-center">
-            <p className="text-neutral-500 text-base">
+          <div className="rounded-3xl border border-dashed border-slate-4 bg-slate-2/50 px-6 py-16 text-center">
+            <p className="font-display text-xl font-black text-heading">
               {tab === 'open'
-                ? 'No open issues — everything looks good!'
+                ? 'No open issues'
                 : 'No resolved issues yet.'}
             </p>
+            <p className="mt-2 text-sm text-text-muted">{tab === 'open' ? 'The plant record is clear right now.' : 'Resolved complaint records will collect here.'}</p>
           </div>
         ) : (
           <div className="space-y-5">
             {Array.from(grouped.entries()).map(([date, dateIssues]) => (
               <div key={date}>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider font-mono">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="section-label">
                     {formatDate(date)}
                   </h3>
-                  <span className="text-[9px] text-neutral-600 font-medium bg-neutral-800/80 px-1.5 py-0.5 rounded-md border border-neutral-800">
+                  <span className="rounded-md border border-slate-4 bg-slate-3/80 px-2 py-0.5 font-data text-[10px] font-bold text-label">
                     {dateIssues.length}
                   </span>
                 </div>
@@ -124,8 +122,8 @@ export function Issues() {
                           setSheetOpen(true)
                         }}
                         extra={issue.resolved ? (
-                          <span className="text-[9px] text-teal-400 font-semibold flex items-center gap-0.5">
-                            ✓ Resolved
+                          <span className="rounded-md bg-emerald/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-light">
+                            Resolved
                           </span>
                         ) : undefined}
                       />
@@ -136,7 +134,7 @@ export function Issues() {
             ))}
           </div>
         )}
-      </div>
+      </section>
 
       <EntryDetailSheet
         entry={selectedEntry}
@@ -156,6 +154,7 @@ export function Issues() {
           navigate(`/new?duplicate=${entry.id}`)
         }}
       />
+      </div>
     </div>
   )
 }
@@ -172,15 +171,15 @@ function SummaryCard({
   color: string
 }) {
   return (
-    <div className="bg-neutral-900/60 border border-neutral-800/50 rounded-xl p-3">
-      <div className="flex items-center gap-2 mb-1">
+    <div className="metric-card p-3 lg:p-4">
+      <div className="mb-2 flex items-center gap-2">
         <span
           className="w-2 h-2 rounded-full flex-shrink-0"
           style={{ backgroundColor: color }}
         />
-        <span className="text-xs text-neutral-500 truncate">{label}</span>
+        <span className="truncate text-[11px] font-bold text-label">{label}</span>
       </div>
-      <p className="text-xl font-bold text-neutral-200">{count}</p>
+      <p className="font-display text-3xl font-black text-heading tabular">{count}</p>
     </div>
   )
 }
@@ -201,14 +200,14 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[9px] font-medium whitespace-nowrap transition-all border ${
+      className={`flex min-h-11 items-center gap-2 rounded-xl border px-4 text-sm font-bold whitespace-nowrap transition-all ${
         active
-          ? 'bg-neutral-800 text-neutral-200 border-neutral-700'
-          : 'bg-neutral-800/80 text-neutral-500 border-neutral-800'
+          ? 'bg-cyan/10 text-cyan-light border-cyan/30'
+          : 'bg-slate-3/80 text-text-muted border-slate-4 hover:text-heading'
       }`}
     >
       <span>{label}</span>
-      <span className={active ? 'text-teal-400' : 'text-neutral-600'}>
+      <span className={active ? 'text-cyan-light' : 'text-label'}>
         {count}
       </span>
     </button>

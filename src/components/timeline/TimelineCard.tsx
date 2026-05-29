@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { Check } from 'lucide-react'
 import type { LogEntry } from '@/types'
 import { getNoteTypeColor } from '@/types'
+import type { CSSProperties } from 'react'
 
 function formatDate(dateStr: string): string {
   try {
@@ -17,7 +18,7 @@ function formatDate(dateStr: string): string {
  *  Lines starting with "- " or "• " are treated as sub-items.
  *  Everything before the first sub-item is the main narrative.
  */
-export function parseSubEntries(note: string): { narrative: string; subs: string[] } {
+function parseSubEntries(note: string): { narrative: string; subs: string[] } {
   const lines = note.split('\n')
   const narrativeLines: string[] = []
   const subs: string[] = []
@@ -57,6 +58,7 @@ export function TimelineCard({
   onObjectClick,
 }: TimelineCardProps) {
   const { narrative, subs } = parseSubEntries(entry.note)
+  const entryColor = getNoteTypeColor(entry.noteType)
 
   return (
     <motion.div
@@ -65,68 +67,63 @@ export function TimelineCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: 100 }}
       transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-      className="group relative mb-3 last:mb-0"
+      className="timeline-node group relative mb-3 last:mb-0"
+      style={{ '--entry-color': entryColor } as CSSProperties}
     >
-      {/* Connected node on the timeline line */}
-      <div className="absolute -left-[20.5px] top-[18px] w-2 h-2 rounded-full border-2 border-teal-500 bg-neutral-950 transition-colors group-hover:bg-teal-400" />
-
-      {/* Card body */}
       <button
         onClick={onClick}
-        className="w-full text-left p-3 rounded-xl bg-neutral-900/60 border border-neutral-800/50 hover:bg-neutral-900/90 hover:border-neutral-800 transition-all duration-150 active:scale-[0.98]"
+        className="w-full overflow-hidden rounded-2xl border border-slate-4/70 bg-slate-2/82 text-left shadow-lg shadow-black/20 transition-all duration-200 hover:-translate-y-0.5 hover:border-cyan/25 hover:bg-slate-2 active:scale-[0.99]"
       >
-        {/* Metadata line */}
-        <div className="flex items-center gap-2 mb-1">
+        <div className="h-1 w-full" style={{ backgroundColor: entryColor }} />
+        <div className="p-3.5">
+        <div className="mb-2 flex items-center gap-2">
           <span
-            className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md border border-neutral-800 bg-neutral-800/80"
-            style={{ color: getNoteTypeColor(entry.noteType) }}
+            className="rounded-md border px-2 py-0.5 text-[11px] font-extrabold"
+            style={{ color: entryColor, backgroundColor: `${entryColor}18`, borderColor: `${entryColor}33` }}
           >
             {entry.noteType}
           </span>
           {extra}
-          <span className="text-[10px] font-mono text-neutral-500 ml-auto">
+          <span className="ml-auto font-data text-[10px] font-semibold text-label">
             {formatDate(entry.date)}
           </span>
         </div>
 
-        {/* Event title — when no sub-entries, show full narrative as title */}
         {subs.length === 0 && (
-          <p className="text-xs font-semibold text-neutral-200 leading-snug mb-1">
+          <p className="mb-1 text-sm font-semibold leading-snug text-body">
             {narrative}
           </p>
         )}
 
-        {/* Narrative body text — when sub-entries exist, show full narrative as body */}
         {subs.length > 0 && narrative && (
-          <p className="text-[11px] text-neutral-400 leading-relaxed">
+          <p className="text-sm leading-relaxed text-text-muted">
             {narrative}
           </p>
         )}
 
-        {/* Object metadata */}
         {entry.object && (
-          <div className="flex items-center gap-1.5 text-[10px] text-neutral-500 mt-1.5">
+          <div className="mt-2 flex items-center gap-1.5 font-data text-[10px] font-semibold text-label">
             {showObjectLink && onObjectClick ? (
               <span
-                className="text-teal-400/80 hover:text-teal-400 font-medium cursor-pointer transition-colors"
+                className="cursor-pointer rounded-md bg-cyan/10 px-1.5 py-0.5 text-cyan-light transition-colors hover:bg-cyan/15"
                 onClick={(e) => { e.stopPropagation(); onObjectClick(entry.object) }}
               >
                 {entry.object}
               </span>
             ) : (
-              <span className="text-neutral-300 font-medium">{entry.object}</span>
+              <span className="rounded-md bg-slate-3 px-1.5 py-0.5 text-body">{entry.object}</span>
             )}
+            {entry.objectGroup && <span className="truncate">{entry.objectGroup}</span>}
           </div>
         )}
 
-        {/* Nested sub-entries (micro-checklist) */}
         {subs.length > 0 && (
-          <div className="mt-2.5 pt-2 border-t border-neutral-800/50">
-            <div className="pl-1.5 space-y-1">
+          <div className="mt-3 border-t border-slate-4/60 pt-2.5">
+            <div className="space-y-1.5 pl-1">
               {subs.map((sub, i) => (
-                <div key={i} className="flex items-start gap-1.5">
-                  <Check size={14} className="text-teal-500/60 flex-shrink-0 mt-px" />
-                  <span className="text-[10.5px] font-medium text-neutral-300 leading-snug">
+                <div key={i} className="flex items-start gap-2">
+                  <Check size={14} className="mt-px flex-shrink-0 text-cyan-light/70" />
+                  <span className="text-xs font-medium leading-snug text-body">
                     {sub}
                   </span>
                 </div>
@@ -134,6 +131,7 @@ export function TimelineCard({
             </div>
           </div>
         )}
+        </div>
       </button>
     </motion.div>
   )

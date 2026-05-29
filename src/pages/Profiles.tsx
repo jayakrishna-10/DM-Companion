@@ -198,10 +198,10 @@ export function Profiles() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-neutral-950 text-neutral-100">
-      <div className="grid flex-1 gap-3 px-3 pt-3 pb-24 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.72fr)] lg:overflow-hidden lg:px-4">
+    <div className="page-shell text-heading">
+      <div className="content-grid grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.72fr)]">
         <section className="min-w-0 space-y-3 lg:overflow-hidden">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {topology.map(typeNode => (
               <TypePanel
                 key={typeNode.type}
@@ -213,23 +213,23 @@ export function Profiles() {
           </div>
 
           {selectedTypeNode && (
-            <div className="rounded-xl border border-neutral-800/70 bg-neutral-950/60 p-3">
+            <div className="metric-card p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-mono text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+                  <p className="section-label">
                     Matrix Workspace
                   </p>
-                  <h2 className="truncate text-sm font-extrabold text-neutral-200">
+                  <h2 className="mt-1 truncate font-display text-xl font-black text-heading">
                     {selectedTypeNode.type}
                   </h2>
                 </div>
-                <div className="flex flex-shrink-0 items-center gap-2 font-mono text-[9px] text-neutral-500">
+                <div className="flex flex-shrink-0 items-center gap-2 font-data text-[10px] font-bold text-label">
                   <span>{selectedTypeNode.groups.length} GRP</span>
                   <span>{selectedTypeNode.objectCount} OBJ</span>
                 </div>
               </div>
 
-              <div className="max-h-[250px] space-y-4 overflow-y-auto pr-1">
+              <div className="max-h-[320px] space-y-4 overflow-y-auto pr-1 lg:max-h-[calc(100dvh-23rem)]">
                 {selectedTypeNode.groups.map(group => (
                   <GroupMatrix
                     key={group.group}
@@ -243,24 +243,25 @@ export function Profiles() {
           )}
         </section>
 
-        <aside className="min-w-0 rounded-xl border border-neutral-800/70 bg-neutral-950/70 p-3 lg:flex lg:min-h-0 lg:flex-col">
-          <div className="mb-3 flex items-start justify-between gap-3 border-b border-neutral-800/60 pb-3">
+        <aside className="metric-card min-w-0 p-4 lg:flex lg:min-h-[calc(100dvh-8rem)] lg:flex-col">
+          <div className="mb-4 flex items-start justify-between gap-3 border-b border-slate-4/60 pb-4">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h2 className="truncate font-mono text-lg font-bold text-neutral-100">
+                <h2 className="truncate font-display text-2xl font-black text-heading">
                   {selectedAsset?.object || 'NO-ASSET'}
                 </h2>
                 {selectedAsset && <SeverityDot severity={selectedAsset.severity} />}
               </div>
-              <p className="mt-0.5 truncate text-[10px] font-medium text-neutral-500">
+              <p className="mt-1 truncate font-data text-[10px] font-bold uppercase tracking-[0.12em] text-label">
                 {selectedAsset?.objectGroup || 'No group selected'}
               </p>
             </div>
             {selectedAsset && (
               <button
                 onClick={() => navigate(`/equipment?object=${encodeURIComponent(selectedAsset.object)}`)}
-                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-900/60 text-neutral-400 transition-colors hover:border-teal-500/40 hover:text-teal-300"
+                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-slate-4 bg-slate-2 text-label transition-colors hover:border-cyan/40 hover:text-cyan-light"
                 title="Open equipment profile"
+                aria-label="Open equipment profile"
               >
                 <ArrowUpRight size={15} />
               </button>
@@ -270,18 +271,18 @@ export function Profiles() {
           <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
             {selectedEntries.length === 0 ? (
               <div className="py-12 text-center">
-                <p className="text-sm font-semibold text-neutral-400">No entries for this asset</p>
-                <p className="mt-1 text-[11px] text-neutral-600">Select another terminal in the matrix.</p>
+                <p className="text-sm font-semibold text-text-muted">No entries for this asset</p>
+                <p className="mt-1 text-[11px] text-label">Select another terminal in the matrix.</p>
               </div>
             ) : (
               <div className="space-y-5">
                 {Array.from(groupedEntries.entries()).map(([date, dateEntries]) => (
                   <div key={date}>
-                    <div className="mb-2 flex items-center justify-between">
-                      <h3 className="font-mono text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="section-label">
                         {formatDate(date)}
                       </h3>
-                      <span className="rounded-md border border-neutral-800 bg-neutral-800/80 px-1.5 py-0.5 text-[9px] font-medium text-neutral-600">
+                      <span className="rounded-md border border-slate-4 bg-slate-3/80 px-2 py-0.5 font-data text-[10px] font-bold text-label">
                         {dateEntries.length}
                       </span>
                     </div>
@@ -344,18 +345,18 @@ function TypePanel({
     <motion.button
       layout
       onClick={onClick}
-      className={`min-w-0 rounded-xl border p-2 text-left transition-all duration-150 active:scale-[0.98] ${
+      className={`metric-card min-w-0 p-3 text-left transition-all duration-150 active:scale-[0.98] ${
         active
-          ? `bg-neutral-900 ${meta.accent} shadow-[0_0_18px_rgba(20,184,166,0.12)]`
-          : 'border-neutral-800/70 bg-neutral-900/30 hover:border-neutral-700'
+          ? `border-cyan/40 shadow-[0_0_22px_rgba(6,182,212,0.16)]`
+          : 'hover:border-cyan/25'
       }`}
     >
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className={`font-mono text-xs font-black ${meta.color}`}>{typeNode.code}</span>
         <SeverityDot severity={typeNode.severity} />
       </div>
-      <p className="truncate text-[11px] font-extrabold text-neutral-200">{typeNode.type}</p>
-      <div className="mt-1 flex items-center justify-between font-mono text-[9px] text-neutral-600">
+      <p className="truncate text-sm font-extrabold text-heading">{typeNode.type}</p>
+      <div className="mt-2 flex items-center justify-between font-data text-[10px] font-bold text-label">
         <span>{typeNode.objectCount} OBJ</span>
         <span>{typeNode.entryCount} LOG</span>
       </div>
@@ -375,7 +376,7 @@ function GroupMatrix({
   return (
     <div>
       <div className="mb-2 flex items-center gap-2">
-        <h3 className="truncate font-mono text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+        <h3 className="section-label truncate">
           // {group.group}
         </h3>
         <SeverityDot severity={group.severity} />
@@ -406,17 +407,17 @@ function AssetButton({
   const severityClass = {
     critical: 'border-rose-500/40 bg-rose-950/20 text-rose-300',
     warning: 'border-amber-500/40 bg-amber-950/20 text-amber-300',
-    normal: 'border-neutral-800 bg-neutral-900/40 text-neutral-300',
+    normal: 'border-slate-4 bg-slate-3/50 text-body',
   }[asset.severity]
 
   return (
     <button
       onClick={onClick}
-      className={`min-w-0 rounded-lg border px-1 py-2 text-center transition-all duration-150 active:scale-[0.97] ${severityClass} ${
-        active ? 'border-teal-400 ring-2 ring-teal-400 shadow-[0_0_16px_rgba(45,212,191,0.22)]' : 'hover:border-neutral-600'
+      className={`min-w-0 rounded-xl border px-1 py-2 text-center transition-all duration-150 active:scale-[0.97] ${severityClass} ${
+        active ? 'border-cyan ring-2 ring-cyan/50 shadow-[0_0_16px_rgba(6,182,212,0.22)]' : 'hover:border-cyan/25'
       }`}
     >
-      <span className="block truncate font-mono text-[11px] font-bold">{asset.object}</span>
+      <span className="block truncate font-data text-[11px] font-bold">{asset.object}</span>
       <span className="block truncate text-[8.5px] uppercase tracking-tight opacity-70">
         {getStatusLabel(asset.severity)}
       </span>

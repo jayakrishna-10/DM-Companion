@@ -19,8 +19,8 @@ export function parseMultiInput(raw: string): string[] {
   const lines = raw
     .split(/\n/)
     .map(line => line.trim())
-    .map(line => line.replace(/^[\s]*[•\-\*]\s*/, ''))
-    .map(line => line.replace(/^[\s]*\d+[\).\s]\s*/, ''))
+    .map(line => line.replace(/^[\s]*[•*-]\s*/, ''))
+    .map(line => line.replace(/^[\s]*\d+[).\s]\s*/, ''))
     .map(line => line.trim())
     .filter(line => line.length > 0)
 

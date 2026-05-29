@@ -43,35 +43,35 @@ export function EntryDetailSheet({ entry, isOpen, onClose, onEdit, onDelete, onD
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <span
-            className="text-[10px] font-semibold px-2 py-0.5 rounded-md border border-neutral-800 bg-neutral-800/80"
-            style={{ color: getNoteTypeColor(entry.noteType) }}
+            className="rounded-lg border px-2 py-1 text-xs font-extrabold"
+            style={{ color: getNoteTypeColor(entry.noteType), backgroundColor: `${getNoteTypeColor(entry.noteType)}18`, borderColor: `${getNoteTypeColor(entry.noteType)}33` }}
           >
             {entry.noteType}
           </span>
-          <span className="text-[10px] font-mono text-neutral-500 ml-auto">
+          <span className="ml-auto font-data text-[11px] font-bold text-label">
             {entry.date}
           </span>
         </div>
 
-        <p className="text-[13px] text-neutral-200 leading-relaxed">{entry.note}</p>
+        <p className="rounded-2xl border border-slate-4/70 bg-slate-1/80 p-3 text-sm leading-relaxed text-body">{entry.note}</p>
 
-        <div className="space-y-2 py-3 border-t border-neutral-800/50">
+        <div className="space-y-2 rounded-2xl border border-slate-4/70 bg-slate-1/50 p-3">
           {[
             { label: 'Object', value: entry.object, clickable: !!entry.object },
             { label: 'Group', value: entry.objectGroup },
             { label: 'Type', value: entry.objectType },
           ].filter(f => f.value).map(f => (
-            <div key={f.label} className="flex justify-between text-[11px]">
-              <span className="text-neutral-500">{f.label}</span>
+            <div key={f.label} className="flex justify-between gap-4 text-xs">
+              <span className="font-data font-bold uppercase tracking-[0.12em] text-label">{f.label}</span>
               {f.clickable ? (
                 <button
                   onClick={handleObjectClick}
-                  className="text-teal-400 hover:text-teal-300 font-medium transition-colors"
+                  className="font-bold text-cyan-light transition-colors hover:text-cyan"
                 >
                   {f.value}
                 </button>
               ) : (
-                <span className="text-neutral-200 font-medium">{f.value}</span>
+                <span className="font-semibold text-heading">{f.value}</span>
               )}
             </div>
           ))}
@@ -82,7 +82,7 @@ export function EntryDetailSheet({ entry, isOpen, onClose, onEdit, onDelete, onD
             href={`https://notion.so/${entry.notionPageId.replace(/-/g, '')}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-[11px] text-teal-400 hover:text-teal-300"
+            className="flex items-center gap-1.5 text-xs font-bold text-cyan-light hover:text-cyan"
           >
             <ExternalLink size={12} />
             View in Notion

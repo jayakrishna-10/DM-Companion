@@ -34,20 +34,26 @@ export function History() {
   }, [entries])
 
   return (
-    <div className="flex flex-col h-full bg-neutral-950">
-      <div className="px-4 pt-3 pb-2 space-y-3">
+    <div className="page-shell">
+      <div className="content-grid space-y-5">
+        <section className="metric-card p-4 lg:p-5">
+          <div className="mb-4 flex flex-col gap-1">
+            <p className="section-label text-cyan-light">Chronicle view</p>
+            <h2 className="font-display text-2xl font-black tracking-tight text-heading">Search every plant event</h2>
+            <p className="text-sm text-text-muted">Filter by note type and scan the full field record by date.</p>
+          </div>
         <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-label" />
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search notes, equipment..."
-            className="w-full h-9 pl-9 pr-4 rounded-lg bg-neutral-900/60 border border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20 transition-all"
+            className="w-full min-h-12 rounded-2xl border border-slate-4 bg-slate-1 pl-10 pr-4 text-sm text-body placeholder:text-label/60 transition-all focus:border-cyan/50 focus:outline-none focus:shadow-[0_0_0_3px_var(--color-cyan-glow)]"
           />
         </div>
 
-        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
           <FilterPill label="All" count={counts.all || 0} active={activeType === 'all'} onClick={() => setActiveType('all')} />
           {noteTypes.map(type => (
             <FilterPill
@@ -60,22 +66,23 @@ export function History() {
             />
           ))}
         </div>
-      </div>
+        </section>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-24">
+      <section>
         {entries.length === 0 ? (
-          <div className="py-16 text-center">
-            <p className="text-neutral-500">No entries found</p>
+          <div className="rounded-3xl border border-dashed border-slate-4 bg-slate-2/50 px-6 py-16 text-center">
+            <p className="font-display text-xl font-black text-heading">No entries found</p>
+            <p className="mt-2 text-sm text-text-muted">Try a different note, object, or note type filter.</p>
           </div>
         ) : (
-          <div>
+          <div className="space-y-6">
             {Array.from(grouped.entries()).map(([date, dateEntries]) => (
-              <div key={date} className="mb-6">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider font-mono">
+              <div key={date}>
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="section-label">
                     {formatTimestamp(date)}
                   </h3>
-                  <span className="text-[9px] text-neutral-600 font-medium bg-neutral-800/80 px-1.5 py-0.5 rounded-md border border-neutral-800">
+                  <span className="rounded-md border border-slate-4 bg-slate-3/80 px-2 py-0.5 font-data text-[10px] font-bold text-label">
                     {dateEntries.length}
                   </span>
                 </div>
@@ -96,7 +103,7 @@ export function History() {
             ))}
           </div>
         )}
-      </div>
+      </section>
 
       <EntryDetailSheet
         entry={selectedEntry}
@@ -110,6 +117,7 @@ export function History() {
         }}
         onDuplicate={(entry) => { setSheetOpen(false); navigate(`/new?duplicate=${entry.id}`) }}
       />
+      </div>
     </div>
   )
 }
@@ -125,15 +133,15 @@ function FilterPill({ label, count, active, onClick, type }: {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[9px] font-medium whitespace-nowrap transition-all flex-shrink-0 border ${
+      className={`flex flex-shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold whitespace-nowrap transition-all ${
         active
-          ? 'bg-teal-500/10 text-teal-400 border-teal-500/30'
-          : 'bg-neutral-800/80 text-neutral-400 border-neutral-800 hover:bg-neutral-700/80 hover:border-neutral-700'
+          ? 'bg-cyan/10 text-cyan-light border-cyan/30'
+          : 'bg-slate-3/80 text-text-muted border-slate-4 hover:bg-slate-3 hover:text-heading'
       }`}
     >
       <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: dotColor }} />
       <span>{label}</span>
-      <span className={active ? 'text-teal-400' : 'text-neutral-500'}>{count}</span>
+      <span className={active ? 'text-cyan-light' : 'text-label'}>{count}</span>
     </button>
   )
 }

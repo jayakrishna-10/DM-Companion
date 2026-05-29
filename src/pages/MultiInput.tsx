@@ -105,107 +105,112 @@ export function MultiInput() {
   // Input step
   if (step === 'input') {
     return (
-      <div className="p-4 space-y-4 pb-24 bg-neutral-950 min-h-screen">
-        <div className="flex items-center gap-2 mb-2">
-          <ClipboardList size={20} className="text-teal-400" />
-          <h2 className="text-lg font-bold text-neutral-200">Multi Entry</h2>
+      <div className="page-shell">
+        <div className="content-grid max-w-4xl space-y-5">
+          <section className="rounded-3xl border border-slate-4/70 bg-[radial-gradient(circle_at_top_left,rgba(6,182,212,0.15),transparent_38%),linear-gradient(145deg,rgba(28,28,36,0.94),rgba(5,5,7,0.92))] p-4 lg:p-5">
+            <div className="flex items-center gap-2">
+              <ClipboardList size={20} className="text-cyan-light" />
+              <p className="section-label text-cyan-light">Batch processor</p>
+            </div>
+            <h2 className="mt-2 font-display text-3xl font-black tracking-tight text-heading">Paste once. Review fast.</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted">
+              Paste observations, activities, or complaints. Each line becomes a separate entry with auto-detected equipment and note type.
+            </p>
+          </section>
+
+          <section className="metric-card grid gap-4 p-4 sm:grid-cols-2">
+            <Input
+              label="Date"
+              type="date"
+              value={date}
+              onChange={e => setDate(e.target.value)}
+            />
+
+            <div className="space-y-1.5">
+              <Select
+                label="Source"
+                options={sourceOptions}
+                value={showAddSource ? '' : source}
+                onChange={handleSourceChange}
+                placeholder="Select source..."
+              />
+              <AnimatePresence>
+                {showAddSource && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="flex items-center gap-1.5 overflow-hidden"
+                  >
+                    <input
+                      type="text"
+                      value={newSourceName}
+                      onChange={e => setNewSourceName(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleAddSource()
+                        if (e.key === 'Escape') { setShowAddSource(false); setNewSourceName('') }
+                      }}
+                      placeholder="New source name..."
+                      className="flex-1 min-h-9 rounded-xl border border-slate-4 bg-slate-1 px-3 text-xs text-body placeholder:text-label/60 focus:border-cyan/50 focus:outline-none"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddSource}
+                      disabled={!newSourceName.trim()}
+                      className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan text-obsidian disabled:opacity-50"
+                    >
+                      <Check size={14} />
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </section>
+
+          <section className="metric-card space-y-2 p-4">
+            <label className="section-label">Paste your list</label>
+            <textarea
+              value={rawText}
+              onChange={e => setRawText(e.target.value)}
+              placeholder={`• R5C resin removed\n• P2-4 discharge valves are closed\n• HCl tanker unloaded\n• NRV is not working for P4-4\n1) P8B pump servicing going\n2) R7-C framework going`}
+              className="min-h-[240px] w-full resize-none rounded-2xl border border-slate-4 bg-slate-1 px-4 py-3 text-sm leading-relaxed text-body placeholder:text-label/60 transition-all focus:border-cyan/50 focus:outline-none focus:shadow-[0_0_0_3px_var(--color-cyan-glow)]"
+              rows={8}
+            />
+            <p className="font-data text-[10px] text-label">
+              Supports bullet points, numbered items, or plain newlines
+            </p>
+          </section>
+
+          <Button
+            variant="primary"
+            size="lg"
+            className="w-full"
+            onClick={handleParse}
+            disabled={!rawText.trim()}
+          >
+            <Sparkles size={18} />
+            Parse & Auto-Tag
+          </Button>
         </div>
-
-        <p className="text-xs text-neutral-400">
-          Paste a list of observations, activities, or complaints. Each line becomes a separate entry. Auto-tagging will suggest equipment and note types.
-        </p>
-
-        <Input
-          label="Date"
-          type="date"
-          value={date}
-          onChange={e => setDate(e.target.value)}
-        />
-
-        <div className="space-y-1.5">
-          <Select
-            label="Source"
-            options={sourceOptions}
-            value={showAddSource ? '' : source}
-            onChange={handleSourceChange}
-            placeholder="Select source..."
-          />
-          <AnimatePresence>
-            {showAddSource && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="flex items-center gap-1.5 overflow-hidden"
-              >
-                <input
-                  type="text"
-                  value={newSourceName}
-                  onChange={e => setNewSourceName(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') handleAddSource()
-                    if (e.key === 'Escape') { setShowAddSource(false); setNewSourceName('') }
-                  }}
-                   placeholder="New source name..."
-                   className="flex-1 h-9 px-2.5 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
-                   autoFocus
-                 />
-                 <button
-                   type="button"
-                   onClick={handleAddSource}
-                   disabled={!newSourceName.trim()}
-                   className="h-9 w-9 flex items-center justify-center rounded-lg bg-teal-500 text-white text-xs disabled:opacity-50 transition-opacity"
-                >
-                  <Check size={14} />
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">
-            Paste your list
-          </label>
-          <textarea
-            value={rawText}
-            onChange={e => setRawText(e.target.value)}
-            placeholder={`• R5C resin removed\n• P2-4 discharge valves are closed\n• HCl tanker unloaded\n• NRV is not working for P4-4\n1) P8B pump servicing going\n2) R7-C framework going`}
-            className="w-full px-3 py-2.5 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-sm focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20 transition-all resize-none min-h-[200px]"
-            rows={8}
-          />
-          <p className="text-[10px] text-neutral-400">
-            Supports bullet points (â€¢, -, *), numbered items (1., 2.), or plain newlines
-          </p>
-        </div>
-
-        <Button
-          variant="primary"
-          size="lg"
-          className="w-full"
-          onClick={handleParse}
-          disabled={!rawText.trim()}
-        >
-          <Sparkles size={18} />
-          Parse & Auto-Tag
-        </Button>
       </div>
     )
   }
 
   // Review step
   return (
-    <div className="p-4 space-y-3 pb-24 bg-neutral-950 min-h-screen">
-      <div className="flex items-center justify-between mb-1">
+    <div className="page-shell">
+      <div className="content-grid max-w-4xl space-y-4">
+      <div className="metric-card sticky top-2 z-10 flex items-center justify-between p-3">
         <button
           onClick={() => setStep('input')}
-          className="flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-300 transition-colors"
+          className="flex items-center gap-1 text-sm font-bold text-label transition-colors hover:text-heading"
         >
           <ArrowLeft size={16} />
           Back
         </button>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-neutral-500">{entries.length} entries</span>
+          <span className="font-data text-xs font-bold text-label">{entries.length} entries</span>
           <Button variant="primary" size="sm" onClick={handleSubmitAll}>
             <ListChecks size={14} />
             Submit All
@@ -213,7 +218,7 @@ export function MultiInput() {
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         <AnimatePresence initial={false}>
           {entries.map((entry) => (
             <EntryCard
@@ -231,7 +236,7 @@ export function MultiInput() {
       </div>
 
       {entries.length === 0 && (
-        <div className="text-center py-8 text-neutral-500 text-sm">
+        <div className="rounded-3xl border border-dashed border-slate-4 bg-slate-2/50 px-6 py-12 text-center text-sm text-text-muted">
           No entries. Go back and paste your list.
         </div>
       )}
@@ -247,6 +252,7 @@ export function MultiInput() {
           <ListChecks size={18} />
           Submit {entries.length} {entries.length === 1 ? 'Entry' : 'Entries'}
         </Button>
+      </div>
       </div>
     </div>
   )
@@ -339,7 +345,7 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
 
   const applyNoteTypeSuggestion = () => {
     if (suggestions.noteType) {
-      onUpdate({ noteType: suggestions.noteType as any })
+      onUpdate({ noteType: suggestions.noteType })
     }
   }
 
@@ -464,39 +470,41 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -100 }}
-      className="rounded-xl border border-neutral-800/50 bg-neutral-900/60 overflow-hidden"
+      className="overflow-hidden rounded-2xl border border-slate-4/70 bg-slate-2/85 shadow-lg shadow-black/20"
     >
       {/* Collapsed header */}
-      <div className="px-3 py-2.5 flex items-start gap-2">
+      <div className="flex items-start gap-3 px-3 py-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span
               className="inline-block w-2 h-2 rounded-full shrink-0"
               style={{ backgroundColor: noteTypeColor }}
             />
-            <span className="text-[10px] font-medium uppercase tracking-wider" style={{ color: noteTypeColor }}>
+            <span className="font-data text-[10px] font-bold uppercase tracking-wider" style={{ color: noteTypeColor }}>
               {entry.noteType}
             </span>
             {entry.object && (
-              <span className="text-[10px] text-neutral-400">
-                Â· {entry.object}
+              <span className="font-data text-[10px] text-text-muted">
+                · {entry.object}
               </span>
             )}
           </div>
-          <p className="text-sm text-neutral-200 leading-snug line-clamp-2">
+          <p className="line-clamp-2 text-sm font-semibold leading-snug text-body">
             {entry.note}
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={() => setIsEditing(!isEditing)}
-            className="p-1.5 rounded-lg hover:bg-neutral-800/60 text-neutral-500 hover:text-neutral-300 transition-colors"
+            className="rounded-lg p-1.5 text-label transition-colors hover:bg-slate-3 hover:text-heading"
+            aria-label={isEditing ? 'Apply entry edits' : 'Edit parsed entry'}
           >
             {isEditing ? <Check size={14} /> : <Pencil size={14} />}
           </button>
           <button
             onClick={onRemove}
-            className="p-1.5 rounded-lg hover:bg-neutral-800/60 text-neutral-500 hover:text-neutral-300 transition-colors"
+            className="rounded-lg p-1.5 text-label transition-colors hover:bg-rose/10 hover:text-rose-light"
+            aria-label="Remove parsed entry"
           >
             <X size={14} />
           </button>
@@ -512,7 +520,7 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="px-3 pb-3 space-y-3 border-t border-neutral-800/50 pt-3">
+            <div className="space-y-3 border-t border-slate-4/60 px-3 pb-3 pt-3">
               {/* Note Type */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Note Type</label>
@@ -626,7 +634,7 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
                       onClick={() => { onUpdate({ object: '', objectGroup: '', objectType: '' }); setSearchQuery('') }}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 text-xs"
                     >
-                      âœ•
+                      Clear
                     </button>
                   )}
                 </div>
@@ -666,7 +674,7 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
                         className="w-full text-left px-3 py-1.5 hover:bg-neutral-800/40 transition-colors border-b border-neutral-800/50 last:border-0"
                       >
                         <span className="text-sm text-neutral-200 font-medium">{obj.object}</span>
-                        <span className="text-xs text-neutral-400 ml-2">{obj.objectGroup} Â· {obj.objectType}</span>
+                        <span className="text-xs text-neutral-400 ml-2">{obj.objectGroup} · {obj.objectType}</span>
                       </button>
                     ))}
                   </div>
@@ -674,7 +682,7 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
                 {entry.object && !searchQuery && (
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-teal-500/10 border border-teal-500/20">
                     <span className="text-sm text-teal-400 font-medium">{entry.object}</span>
-                    <span className="text-xs text-neutral-400">{entry.objectGroup} Â· {entry.objectType}</span>
+                    <span className="text-xs text-neutral-400">{entry.objectGroup} · {entry.objectType}</span>
                   </div>
                 )}
                 <button

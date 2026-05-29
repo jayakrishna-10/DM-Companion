@@ -66,13 +66,17 @@ export function Logs() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-neutral-950">
-      <div className="px-4 pt-4 pb-24 space-y-6">
+    <div className="page-shell">
+      <div className="content-grid space-y-6">
         {/* ── Header ── */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Database size={20} className="text-teal-400" />
-            <h1 className="text-lg font-bold text-neutral-200">Logs</h1>
+        <section className="rounded-3xl border border-slate-4/70 bg-[radial-gradient(circle_at_top_left,rgba(6,182,212,0.14),transparent_38%),linear-gradient(145deg,rgba(28,28,36,0.92),rgba(5,5,7,0.92))] p-4 lg:p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <Database size={20} className="text-cyan-light" />
+              <p className="section-label text-cyan-light">Telemetry stream</p>
+            </div>
+            <h1 className="mt-2 font-display text-3xl font-black tracking-tight text-heading">Storage and sync diagnostics</h1>
           </div>
           <div className="flex items-center gap-2">
             <Button size="sm" variant="ghost" onClick={handleRefresh}>
@@ -89,13 +93,14 @@ export function Logs() {
             </Button>
           </div>
         </div>
+        </section>
 
         {/* ── Section 1: Database Statistics ── */}
         <section>
-          <h2 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">
+          <h2 className="section-label mb-3">
             Database Statistics
           </h2>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <StatCard
               label="Total Entries"
               value={dbStats?.totalEntries ?? 0}
@@ -123,13 +128,13 @@ export function Logs() {
 
         {/* ── Section 2: Image Push History ── */}
         <section>
-          <h2 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">
+          <h2 className="section-label mb-3">
             Image Push History
           </h2>
           {photoSyncLogs.length === 0 ? (
-            <div className="text-center py-8">
-              <Image size={28} className="mx-auto text-neutral-500/40 mb-2" />
-              <p className="text-sm text-neutral-500">No image push logs yet</p>
+            <div className="rounded-3xl border border-dashed border-slate-4 bg-slate-2/50 px-6 py-12 text-center">
+              <Image size={28} className="mx-auto mb-2 text-label" />
+              <p className="text-sm text-text-muted">No image push logs yet</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -144,14 +149,14 @@ export function Logs() {
 
         {/* ── Section 3: Sync History ── */}
         <section>
-          <h2 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">
+          <h2 className="section-label mb-3">
             Sync History
           </h2>
           {syncLogs.length === 0 ? (
-            <div className="text-center py-12">
-              <Clock size={32} className="mx-auto text-neutral-500/40 mb-2" />
-              <p className="text-sm text-neutral-500">No sync logs yet</p>
-              <p className="text-xs text-neutral-500/60 mt-1">
+            <div className="rounded-3xl border border-dashed border-slate-4 bg-slate-2/50 px-6 py-12 text-center">
+              <Clock size={32} className="mx-auto mb-2 text-label" />
+              <p className="text-sm text-text-muted">No sync logs yet</p>
+              <p className="mt-1 text-xs text-label">
                 Sync logs appear after a Notion sync completes.
               </p>
             </div>
@@ -182,11 +187,11 @@ function StatCard({
   sub?: string
 }) {
   return (
-    <div className="bg-neutral-900/60 border border-neutral-800/50 rounded-xl p-3">
-      <span className="text-[10px] text-neutral-500 block mb-0.5">{label}</span>
-      <p className="text-xl font-bold text-neutral-200">{value}</p>
+    <div className="metric-card p-3">
+      <span className="mb-1 block font-data text-[10px] font-bold uppercase tracking-[0.14em] text-label">{label}</span>
+      <p className="font-display text-2xl font-black text-heading tabular">{value}</p>
       {sub && (
-        <p className="text-[9px] text-neutral-500 mt-0.5 leading-tight">{sub}</p>
+        <p className="mt-1 text-[10px] leading-tight text-text-muted">{sub}</p>
       )}
     </div>
   )
@@ -201,12 +206,12 @@ function PhotoSyncLogCard({ log }: { log: PhotoSyncLog }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-      className="bg-neutral-900/60 border border-neutral-800/50 rounded-xl p-3 space-y-2"
+      className="metric-card space-y-2 p-3"
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <Image size={14} className="text-teal-400 flex-shrink-0" />
-          <span className="text-xs text-neutral-400 whitespace-nowrap">
+          <Image size={14} className="text-cyan-light flex-shrink-0" />
+          <span className="whitespace-nowrap font-data text-xs text-text-muted">
             {formatTimestamp(log.timestamp)}
           </span>
         </div>
@@ -215,17 +220,17 @@ function PhotoSyncLogCard({ log }: { log: PhotoSyncLog }) {
             {isError ? <XCircle size={11} /> : <CheckCircle size={11} />}
             {isError ? 'Error' : 'Success'}
           </span>
-          <span className="text-[11px] text-neutral-400 flex items-center gap-1">
+          <span className="flex items-center gap-1 font-data text-[11px] text-text-muted">
             <ArrowUpDown size={11} />
             {formatDuration(log.durationMs)}
           </span>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-neutral-400">
-        <span>Pushed: <span className="text-neutral-300 font-medium">{log.pushed}</span></span>
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-text-muted">
+        <span>Pushed: <span className="text-heading font-medium">{log.pushed}</span></span>
         <span>Failed: <span className="text-complaint-light font-medium">{log.failed}</span></span>
-        <span>HD size: <span className="text-neutral-300 font-medium">{log.totalSizeKb} KB</span></span>
+        <span>HD size: <span className="text-heading font-medium">{log.totalSizeKb} KB</span></span>
       </div>
 
       {isError && log.error && (
@@ -248,13 +253,13 @@ function SyncLogCard({ log }: { log: SyncLog }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-      className="bg-neutral-900/60 border border-neutral-800/50 rounded-xl p-3 space-y-2"
+      className="metric-card space-y-2 p-3"
     >
       {/* Top row: timestamp + status + duration */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <Clock size={14} className="text-neutral-400 flex-shrink-0" />
-          <span className="text-xs text-neutral-400 whitespace-nowrap">
+          <Clock size={14} className="text-text-muted flex-shrink-0" />
+          <span className="whitespace-nowrap font-data text-xs text-text-muted">
             {formatTimestamp(log.timestamp)}
           </span>
         </div>
@@ -273,7 +278,7 @@ function SyncLogCard({ log }: { log: SyncLog }) {
             )}
             {isError ? 'Error' : 'Success'}
           </span>
-          <span className="text-[11px] text-neutral-400 flex items-center gap-1">
+          <span className="flex items-center gap-1 font-data text-[11px] text-text-muted">
             <ArrowUpDown size={11} />
             {formatDuration(log.durationMs)}
           </span>
@@ -281,13 +286,13 @@ function SyncLogCard({ log }: { log: SyncLog }) {
       </div>
 
       {/* Metrics row */}
-      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-neutral-400">
-        <span>Pulled: <span className="text-neutral-300 font-medium">{log.pulled}</span></span>
-        <span>Pushed: <span className="text-neutral-300 font-medium">{log.pushed}</span></span>
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-text-muted">
+        <span>Pulled: <span className="text-heading font-medium">{log.pulled}</span></span>
+        <span>Pushed: <span className="text-heading font-medium">{log.pushed}</span></span>
         <span>Failed: <span className="text-complaint-light font-medium">{log.failed}</span></span>
-        <span>Dups skipped: <span className="text-neutral-300 font-medium">{log.duplicatesSkipped}</span></span>
-        <span>Deleted: <span className="text-neutral-300 font-medium">{log.deleted}</span></span>
-        <span>Tags: <span className="text-neutral-300 font-medium">{log.tagsUpserted}</span></span>
+        <span>Dups skipped: <span className="text-heading font-medium">{log.duplicatesSkipped}</span></span>
+        <span>Deleted: <span className="text-heading font-medium">{log.deleted}</span></span>
+        <span>Tags: <span className="text-heading font-medium">{log.tagsUpserted}</span></span>
       </div>
 
       {/* Error message */}

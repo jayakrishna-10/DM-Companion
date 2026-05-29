@@ -6,16 +6,19 @@ interface BadgeProps {
 }
 
 export function Badge({ type, size = 'sm' }: BadgeProps) {
+  const color = getNoteTypeColor(type)
   return (
     <span
-      className={`inline-flex items-center font-semibold whitespace-nowrap ${
-        size === 'sm' ? 'text-[9px] px-1.5 py-0.5 rounded-md border border-neutral-800 bg-neutral-800/80' : 'text-[10px] px-2 py-0.5 rounded-md border border-neutral-800 bg-neutral-800/80'
+      className={`inline-flex items-center font-bold whitespace-nowrap ${
+        size === 'sm' ? 'text-[11px] px-2 py-0.5 rounded-md' : 'text-xs px-2.5 py-1 rounded-lg'
       }`}
       style={{
-        color: getNoteTypeColor(type),
+        color,
+        backgroundColor: `${color}22`,
+        border: `1px solid ${color}33`,
       }}
     >
-      <span className="truncate max-w-[100px]">{type}</span>
+      <span className="truncate max-w-[120px]">{type}</span>
     </span>
   )
 }

@@ -116,14 +116,14 @@ export function PhotoCaptureSheet({ isOpen, tags, onClose, onSave }: PhotoCaptur
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm px-4 py-6 flex items-end sm:items-center justify-center">
-      <motion.div initial={{ y: 24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 24, opacity: 0 }} className="w-full max-w-lg rounded-3xl border border-neutral-800 bg-neutral-950 shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-900">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 px-4 py-6 backdrop-blur-sm sm:items-center">
+      <motion.div initial={{ y: 24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 24, opacity: 0 }} className="w-full max-w-lg overflow-hidden rounded-3xl border border-slate-4 bg-slate-2 shadow-2xl shadow-black/50">
+        <div className="flex items-center justify-between border-b border-slate-4/70 px-4 py-3">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.18em] text-teal-400 font-mono">Plant photo</p>
-            <h2 className="text-lg font-semibold text-neutral-100">Capture equipment image</h2>
+            <p className="section-label text-cyan-light">Plant photo</p>
+            <h2 className="font-display text-xl font-black text-heading">Capture equipment image</h2>
           </div>
-          <button onClick={handleClose} className="h-9 w-9 rounded-full bg-neutral-900 text-neutral-400 flex items-center justify-center">
+          <button aria-label="Close photo capture" onClick={handleClose} className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-3 text-label transition-colors hover:text-heading">
             <X size={18} />
           </button>
         </div>
@@ -141,12 +141,12 @@ export function PhotoCaptureSheet({ isOpen, tags, onClose, onSave }: PhotoCaptur
 
           <button
             onClick={() => inputRef.current?.click()}
-            className="w-full aspect-[4/3] rounded-2xl border border-dashed border-neutral-700 bg-neutral-900/70 overflow-hidden flex items-center justify-center"
+            className="flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-2xl border border-dashed border-slate-4 bg-slate-1"
           >
             {previewUrls.length > 0 ? (
-              <div className="grid h-full w-full grid-cols-2 gap-1 bg-neutral-950 p-1">
+              <div className="grid h-full w-full grid-cols-2 gap-1 bg-obsidian p-1">
                 {previewUrls.slice(0, 4).map((url, index) => (
-                  <div key={url} className="relative overflow-hidden rounded-xl bg-neutral-900">
+                  <div key={url} className="relative overflow-hidden rounded-xl bg-slate-2">
                     <img src={url} alt={`Selected plant equipment ${index + 1}`} className="h-full w-full object-cover" />
                     {index === 3 && previewUrls.length > 4 && (
                       <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-neutral-100 font-semibold">+{previewUrls.length - 4}</div>
@@ -156,29 +156,29 @@ export function PhotoCaptureSheet({ isOpen, tags, onClose, onSave }: PhotoCaptur
               </div>
             ) : (
               <div className="text-center px-6">
-                <div className="mx-auto mb-3 h-14 w-14 rounded-2xl bg-teal-500/10 text-teal-300 flex items-center justify-center border border-teal-500/20">
+                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan/20 bg-cyan/10 text-cyan-light">
                   <Camera size={28} />
                 </div>
-                <p className="text-neutral-200 font-medium">Take or choose photos</p>
-                <p className="text-neutral-500 text-sm mt-1">Select multiple photos when supported. Camera opens on mobile PWA.</p>
+                <p className="font-semibold text-heading">Take or choose photos</p>
+                <p className="mt-1 text-sm text-text-muted">Select multiple photos when supported. Camera opens on mobile PWA.</p>
               </div>
             )}
           </button>
 
           <div>
-            <label className="text-[10px] uppercase tracking-wider text-neutral-500 font-mono">Base photo name / tag</label>
+            <label className="section-label">Base photo name / tag</label>
             <input
               value={tag}
               onChange={(event) => setTag(event.target.value)}
               placeholder="e.g. Boiler feed pump A"
-              className="mt-2 w-full h-12 rounded-xl bg-neutral-900 border border-neutral-800 px-4 text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-teal-500/70"
+              className="mt-2 h-12 w-full rounded-xl border border-slate-4 bg-slate-1 px-4 text-body placeholder:text-label/60 focus:border-cyan/60 focus:outline-none"
             />
           </div>
 
           {quickTags.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {quickTags.map((item) => (
-                <button key={item} onClick={() => setTag(item)} className="rounded-full border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-xs text-neutral-300">
+                <button key={item} onClick={() => setTag(item)} className="rounded-xl border border-slate-4 bg-slate-3/70 px-3 py-1.5 text-xs font-bold text-text-muted transition-colors hover:border-cyan/30 hover:text-heading">
                   {item}
                 </button>
               ))}
@@ -193,8 +193,8 @@ export function PhotoCaptureSheet({ isOpen, tags, onClose, onSave }: PhotoCaptur
             </Button>
           </div>
 
-          <div className="flex items-start gap-2 rounded-xl border border-neutral-800 bg-neutral-900/60 p-3 text-xs text-neutral-500">
-            <ImagePlus size={15} className="mt-0.5 text-teal-400" />
+          <div className="flex items-start gap-2 rounded-xl border border-slate-4 bg-slate-1/70 p-3 text-xs leading-relaxed text-text-muted">
+            <ImagePlus size={15} className="mt-0.5 text-cyan-light" />
             <p>SQLite keeps compact SD thumbnails around 45 KB for offline retrieval. Notion receives HD copies up to ~1 MB when online.</p>
           </div>
         </div>

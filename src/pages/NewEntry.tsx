@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { EntryForm } from '@/components/entry/EntryForm'
@@ -37,16 +38,16 @@ export function NewEntry() {
   }
 
   if (loading) {
-    return <div className="p-4 text-text-muted">Loading...</div>
+    return <div className="page-shell text-text-muted">Loading...</div>
   }
 
   return (
-    <div>
+    <>
       <EntryForm
         initialData={initialData}
         editId={editId}
         onSubmit={editId !== undefined ? undefined : handleSubmit}
       />
-    </div>
+    </>
   )
 }
