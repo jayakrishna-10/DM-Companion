@@ -165,6 +165,7 @@ export interface DbStats {
 export interface PlantPhoto {
   id: number
   tag: string
+  note: string
   sdData: Uint8Array
   sdMimeType: string
   hdData: Uint8Array | null
@@ -175,4 +176,15 @@ export interface PlantPhoto {
   notionFileUploadId: string | null
   synced: number
   createdAt: string
+}
+
+export type PhotoSortKey = 'date' | 'tag' | 'size'
+
+export interface PhotoFilterOptions {
+  tag?: string
+  search?: string
+  synced?: 'all' | 'synced' | 'unsynced'
+  sort?: PhotoSortKey
+  order?: 'asc' | 'desc'
+  limit?: number
 }

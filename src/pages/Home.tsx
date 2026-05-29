@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useDatabase } from '@/hooks/useDatabase'
 import { EntryDetailSheet } from '@/components/entry/EntryDetailSheet'
 import { PhotoCaptureSheet } from '@/components/photo/PhotoCaptureSheet'
 import { HomeSkeleton } from '@/components/ui/Skeleton'
 import { toast } from '@/components/ui/Toaster'
-import { Camera, CheckCircle2, CloudOff, Plus, Trash2 } from 'lucide-react'
+import { Camera, CheckCircle2, CloudOff, Plus } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { AnimatePresence, motion } from 'framer-motion'
 import { TimelineCard, TimelineLine } from '@/components/timeline'
+import { usePhotoUrl } from '@/components/photo/usePhotoUrl'
 import type { LogEntry, PlantPhoto } from '@/types'
 
 function formatDate(dateStr: string): string {
@@ -21,7 +22,7 @@ function formatDate(dateStr: string): string {
 }
 
 export function Home() {
-  const { isReady, entries, removeEntry, photos, photoTags, addPhoto, removePhoto } = useDatabase()
+  const { isReady, entries, removeEntry, photos, photoTags, addPhoto } = useDatabase()
   const [selectedEntry, setSelectedEntry] = useState<LogEntry | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false)
@@ -69,17 +70,17 @@ export function Home() {
 
       {photos.length > 0 && (
         <section className="px-4 mb-5">
-          <div className="flex items-center justify-between mb-2">
+          <button onClick={() => navigate('/photos')} className="mb-2 flex w-full items-center justify-between text-left">
             <h3 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider font-mono">
               EQUIPMENT PHOTOS
             </h3>
-            <span className="text-[9px] text-neutral-600 font-medium bg-neutral-800/80 px-1.5 py-0.5 rounded-md border border-neutral-800">
-              {photos.length}
+            <span className="text-[10px] font-medium text-teal-400">
+              View all · {photos.length}
             </span>
-          </div>
+          </button>
           <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 snap-x">
             {photos.slice(0, 12).map(photo => (
-              <PhotoCard key={photo.id} photo={photo} onDelete={(id) => { removePhoto(id); toast('Photo deleted') }} />
+              <PhotoCard key={photo.id} photo={photo} onClick={() => navigate(`/photos?id=${photo.id}`)} />
             ))}
           </div>
         </section>
@@ -155,19 +156,11 @@ export function Home() {
   )
 }
 
-function PhotoCard({ photo, onDelete }: { photo: PlantPhoto; onDelete: (id: number) => void }) {
-  const url = useMemo(() => {
-    const imageBuffer = photo.sdData.buffer.slice(photo.sdData.byteOffset, photo.sdData.byteOffset + photo.sdData.byteLength) as ArrayBuffer
-    const blob = new Blob([imageBuffer], { type: photo.sdMimeType })
-    return URL.createObjectURL(blob)
-  }, [photo.sdData, photo.sdMimeType])
-
-  useEffect(() => {
-    return () => URL.revokeObjectURL(url)
-  }, [url])
+function PhotoCard({ photo, onClick }: { photo: PlantPhoto; onClick: () => void }) {
+  const url = usePhotoUrl(photo, 'sd')
 
   return (
-    <div className="relative w-36 flex-shrink-0 snap-start rounded-2xl border border-neutral-800 bg-neutral-900 overflow-hidden">
+    <button onClick={onClick} className="relative w-36 flex-shrink-0 snap-start overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900 text-left">
       <div className="aspect-square bg-neutral-950">
         {url && <img src={url} alt={photo.tag} className="h-full w-full object-cover" />}
       </div>
@@ -178,10 +171,7 @@ function PhotoCard({ photo, onDelete }: { photo: PlantPhoto; onDelete: (id: numb
           {photo.synced ? <CheckCircle2 size={12} className="text-emerald-400" /> : <CloudOff size={12} className="text-amber-400" />}
         </div>
       </div>
-      <button onClick={() => onDelete(photo.id)} className="absolute right-1.5 top-1.5 h-7 w-7 rounded-full bg-black/60 text-neutral-300 flex items-center justify-center backdrop-blur">
-        <Trash2 size={13} />
-      </button>
-    </div>
+    </button>
   )
 }
 
