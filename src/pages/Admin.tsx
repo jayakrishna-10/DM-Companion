@@ -9,9 +9,12 @@ export function Admin() {
 
   return (
     <div className="min-h-screen bg-neutral-950">
-      <div className="sticky top-12 z-30 border-b border-neutral-900 bg-neutral-950/95 px-4 py-3 backdrop-blur">
-        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-teal-400">Admin</p>
-        <div className="mt-3 grid grid-cols-2 gap-2 rounded-2xl border border-neutral-800 bg-neutral-900/70 p-1">
+      <div className="pb-16">
+        {isPhotos ? <Photos basePath="/admin/photos" compactHeader /> : <Logs />}
+      </div>
+
+      <div className="fixed bottom-16 left-0 right-0 z-30 border-t border-neutral-900 bg-neutral-950/95 px-4 py-2 backdrop-blur">
+        <div className="mx-auto grid max-w-lg grid-cols-2 gap-2 rounded-2xl border border-neutral-800 bg-neutral-900/70 p-1">
           <NavLink
             to="/admin"
             end
@@ -29,8 +32,6 @@ export function Admin() {
           </NavLink>
         </div>
       </div>
-
-      {isPhotos ? <Photos basePath="/admin/photos" compactHeader /> : <Logs />}
     </div>
   )
 }
