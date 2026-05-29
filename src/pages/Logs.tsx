@@ -11,8 +11,9 @@ import {
   XCircle,
   Clock,
   ArrowUpDown,
+  Image,
 } from 'lucide-react'
-import type { SyncLog } from '@/types'
+import type { PhotoSyncLog, SyncLog } from '@/types'
 
 /* ─── Helpers ─── */
 
@@ -39,7 +40,7 @@ function formatDuration(ms: number): string {
 /* ─── Component ─── */
 
 export function Logs() {
-  const { dbStats, syncLogs, clearLogs, refreshLogs } = useDatabase()
+  const { dbStats, syncLogs, photoSyncLogs, clearLogs, refreshLogs } = useDatabase()
   const [confirmClear, setConfirmClear] = useState(false)
 
   // Refresh on mount
@@ -112,10 +113,36 @@ export function Logs() {
               ].join(' · ')}
             />
             <StatCard label="Sync Logs" value={dbStats?.syncLogCount ?? 0} />
+            <StatCard
+              label="Photos"
+              value={dbStats?.photoCount ?? 0}
+              sub={`${dbStats?.photoSizeKB ?? 0} KB local · ${dbStats?.photoSyncLogCount ?? 0} image logs`}
+            />
           </div>
         </section>
 
-        {/* ── Section 2: Sync History ── */}
+        {/* ── Section 2: Image Push History ── */}
+        <section>
+          <h2 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">
+            Image Push History
+          </h2>
+          {photoSyncLogs.length === 0 ? (
+            <div className="text-center py-8">
+              <Image size={28} className="mx-auto text-neutral-500/40 mb-2" />
+              <p className="text-sm text-neutral-500">No image push logs yet</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <AnimatePresence initial={false}>
+                {photoSyncLogs.map((log, i) => (
+                  <PhotoSyncLogCard key={log.id ?? i} log={log} />
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+        </section>
+
+        {/* ── Section 3: Sync History ── */}
         <section>
           <h2 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">
             Sync History
@@ -162,6 +189,51 @@ function StatCard({
         <p className="text-[9px] text-neutral-500 mt-0.5 leading-tight">{sub}</p>
       )}
     </div>
+  )
+}
+
+function PhotoSyncLogCard({ log }: { log: PhotoSyncLog }) {
+  const isError = log.status === 'error'
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+      className="bg-neutral-900/60 border border-neutral-800/50 rounded-xl p-3 space-y-2"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Image size={14} className="text-teal-400 flex-shrink-0" />
+          <span className="text-xs text-neutral-400 whitespace-nowrap">
+            {formatTimestamp(log.timestamp)}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${isError ? 'bg-complaint/10 text-complaint-light' : 'bg-resolved/10 text-resolved-light'}`}>
+            {isError ? <XCircle size={11} /> : <CheckCircle size={11} />}
+            {isError ? 'Error' : 'Success'}
+          </span>
+          <span className="text-[11px] text-neutral-400 flex items-center gap-1">
+            <ArrowUpDown size={11} />
+            {formatDuration(log.durationMs)}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-neutral-400">
+        <span>Pushed: <span className="text-neutral-300 font-medium">{log.pushed}</span></span>
+        <span>Failed: <span className="text-complaint-light font-medium">{log.failed}</span></span>
+        <span>HD size: <span className="text-neutral-300 font-medium">{log.totalSizeKb} KB</span></span>
+      </div>
+
+      {isError && log.error && (
+        <p className="text-[11px] text-complaint-light leading-relaxed bg-complaint/5 rounded-lg px-2 py-1.5">
+          {log.error}
+        </p>
+      )}
+    </motion.div>
   )
 }
 

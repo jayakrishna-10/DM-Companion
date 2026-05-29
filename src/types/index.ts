@@ -135,6 +135,17 @@ export interface SyncLog {
   error: string
 }
 
+export interface PhotoSyncLog {
+  id: number
+  timestamp: string
+  status: string
+  pushed: number
+  failed: number
+  totalSizeKb: number
+  durationMs: number
+  error: string
+}
+
 export interface DbStats {
   totalEntries: number
   syncedEntries: number
@@ -145,6 +156,9 @@ export interface DbStats {
   objectTypeTagCount: number
   objectGroupTagCount: number
   syncLogCount: number
+  photoSyncLogCount: number
+  photoCount: number
+  photoSizeKB: number
   dbSizeKB: number
 }
 

@@ -4,14 +4,14 @@ import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { toast } from '@/components/ui/Toaster'
 
-const SD_TARGET_BYTES = 100 * 1024
+const SD_TARGET_BYTES = 45 * 1024
 const HD_TARGET_BYTES = 1024 * 1024
 
 interface PhotoCaptureSheetProps {
   isOpen: boolean
   tags: string[]
   onClose: () => void
-  onSave: (photo: { tag: string; sdData: Uint8Array; sdMimeType: string; hdData: Uint8Array; hdMimeType: string }) => void
+  onSave: (photos: { tag: string; sdData: Uint8Array; sdMimeType: string; hdData: Uint8Array; hdMimeType: string }[]) => void
 }
 
 async function blobToBytes(blob: Blob): Promise<Uint8Array> {
@@ -57,20 +57,19 @@ async function compressImage(file: File, targetBytes: number, maxDimension: numb
 
 export function PhotoCaptureSheet({ isOpen, tags, onClose, onSave }: PhotoCaptureSheetProps) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [tag, setTag] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
   const quickTags = useMemo(() => tags.slice(0, 12), [tags])
-  const previewUrl = useMemo(() => file ? URL.createObjectURL(file) : null, [file])
+  const previewUrls = useMemo(() => files.map((file) => URL.createObjectURL(file)), [files])
 
   useEffect(() => {
-    if (!previewUrl) return
-    return () => URL.revokeObjectURL(previewUrl)
-  }, [previewUrl])
+    return () => previewUrls.forEach((url) => URL.revokeObjectURL(url))
+  }, [previewUrls])
 
   const handleClose = () => {
-    setFile(null)
+    setFiles([])
     setTag('')
     setIsSaving(false)
     onClose()
@@ -80,8 +79,8 @@ export function PhotoCaptureSheet({ isOpen, tags, onClose, onSave }: PhotoCaptur
 
   const handleSave = async () => {
     const cleanTag = tag.trim()
-    if (!file) {
-      toast('Take or choose a photo first')
+    if (files.length === 0) {
+      toast('Take or choose photos first')
       return
     }
     if (!cleanTag) {
@@ -91,18 +90,22 @@ export function PhotoCaptureSheet({ isOpen, tags, onClose, onSave }: PhotoCaptur
 
     setIsSaving(true)
     try {
-      const [sdBlob, hdBlob] = await Promise.all([
-        compressImage(file, SD_TARGET_BYTES, 640),
-        compressImage(file, HD_TARGET_BYTES, 1800),
-      ])
-      onSave({
-        tag: cleanTag,
-        sdData: await blobToBytes(sdBlob),
-        sdMimeType: sdBlob.type || 'image/jpeg',
-        hdData: await blobToBytes(hdBlob),
-        hdMimeType: hdBlob.type || 'image/jpeg',
-      })
-      toast(navigator.onLine ? 'Photo saved. Notion backup queued.' : 'Photo saved offline. Backup will retry when online.')
+      const photos = await Promise.all(files.map(async (file, index) => {
+        const photoName = files.length > 1 ? `${cleanTag} ${index + 1}` : cleanTag
+        const [sdBlob, hdBlob] = await Promise.all([
+          compressImage(file, SD_TARGET_BYTES, 520),
+          compressImage(file, HD_TARGET_BYTES, 1800),
+        ])
+        return {
+          tag: photoName,
+          sdData: await blobToBytes(sdBlob),
+          sdMimeType: sdBlob.type || 'image/jpeg',
+          hdData: await blobToBytes(hdBlob),
+          hdMimeType: hdBlob.type || 'image/jpeg',
+        }
+      }))
+      onSave(photos)
+      toast(navigator.onLine ? `${photos.length} photo${photos.length === 1 ? '' : 's'} saved. Notion backup queued.` : `${photos.length} photo${photos.length === 1 ? '' : 's'} saved offline. Backup will retry when online.`)
       handleClose()
     } catch (err) {
       console.error('[photo] Save failed:', err)
@@ -130,30 +133,40 @@ export function PhotoCaptureSheet({ isOpen, tags, onClose, onSave }: PhotoCaptur
             ref={inputRef}
             type="file"
             accept="image/*"
+            multiple
             capture="environment"
             className="hidden"
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            onChange={(event) => setFiles(Array.from(event.target.files ?? []))}
           />
 
           <button
             onClick={() => inputRef.current?.click()}
             className="w-full aspect-[4/3] rounded-2xl border border-dashed border-neutral-700 bg-neutral-900/70 overflow-hidden flex items-center justify-center"
           >
-            {previewUrl ? (
-              <img src={previewUrl} alt="Selected plant equipment" className="h-full w-full object-cover" />
+            {previewUrls.length > 0 ? (
+              <div className="grid h-full w-full grid-cols-2 gap-1 bg-neutral-950 p-1">
+                {previewUrls.slice(0, 4).map((url, index) => (
+                  <div key={url} className="relative overflow-hidden rounded-xl bg-neutral-900">
+                    <img src={url} alt={`Selected plant equipment ${index + 1}`} className="h-full w-full object-cover" />
+                    {index === 3 && previewUrls.length > 4 && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-neutral-100 font-semibold">+{previewUrls.length - 4}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
             ) : (
               <div className="text-center px-6">
                 <div className="mx-auto mb-3 h-14 w-14 rounded-2xl bg-teal-500/10 text-teal-300 flex items-center justify-center border border-teal-500/20">
                   <Camera size={28} />
                 </div>
-                <p className="text-neutral-200 font-medium">Take a photo</p>
-                <p className="text-neutral-500 text-sm mt-1">Camera opens on mobile PWA; gallery fallback on desktop.</p>
+                <p className="text-neutral-200 font-medium">Take or choose photos</p>
+                <p className="text-neutral-500 text-sm mt-1">Select multiple photos when supported. Camera opens on mobile PWA.</p>
               </div>
             )}
           </button>
 
           <div>
-            <label className="text-[10px] uppercase tracking-wider text-neutral-500 font-mono">Unique name / tag</label>
+            <label className="text-[10px] uppercase tracking-wider text-neutral-500 font-mono">Base photo name / tag</label>
             <input
               value={tag}
               onChange={(event) => setTag(event.target.value)}
@@ -176,13 +189,13 @@ export function PhotoCaptureSheet({ isOpen, tags, onClose, onSave }: PhotoCaptur
             <Button variant="secondary" onClick={handleClose} disabled={isSaving}>Cancel</Button>
             <Button variant="primary" onClick={handleSave} disabled={isSaving}>
               {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-              Save photo
+              Save {files.length > 1 ? `${files.length} photos` : 'photo'}
             </Button>
           </div>
 
           <div className="flex items-start gap-2 rounded-xl border border-neutral-800 bg-neutral-900/60 p-3 text-xs text-neutral-500">
             <ImagePlus size={15} className="mt-0.5 text-teal-400" />
-            <p>SQLite keeps an SD copy under ~100 KB for offline retrieval. Notion receives an HD copy up to ~1 MB when online.</p>
+            <p>SQLite keeps compact SD thumbnails around 45 KB for offline retrieval. Notion receives HD copies up to ~1 MB when online.</p>
           </div>
         </div>
       </motion.div>

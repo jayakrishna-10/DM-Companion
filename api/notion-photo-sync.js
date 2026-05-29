@@ -28,24 +28,40 @@ async function getDatabaseSchema(apiKey, databaseId) {
 
 function buildPageProperties(schema, photo) {
   const properties = {}
-  const titleEntry = Object.entries(schema).find(([, prop]) => prop.type === 'title')
-  if (!titleEntry) throw new Error('Photo database must have a title property')
+  const photoName = photo.name || photo.tag
 
-  const [titleName] = titleEntry
-  properties[titleName] = { title: [{ text: { content: photo.tag } }] }
+  if (schema.Name?.type === 'title') {
+    properties.Name = { title: [{ text: { content: photoName } }] }
+  } else {
+    const titleEntry = Object.entries(schema).find(([, prop]) => prop.type === 'title')
+    if (!titleEntry) throw new Error('Photo database must have a title property')
+    const [titleName] = titleEntry
+    properties[titleName] = { title: [{ text: { content: photoName } }] }
+  }
+
+  if (schema.Date?.type === 'date') {
+    properties.Date = { date: { start: photo.createdAt?.slice(0, 10) || new Date().toISOString().slice(0, 10) } }
+  }
+
+  if (schema.Tag?.type === 'select') {
+    properties.Tag = { select: { name: photoName } }
+  } else if (schema.Tag?.type === 'multi_select') {
+    properties.Tag = { multi_select: [{ name: photoName }] }
+  }
+
+  if (schema['Approx Size']?.type === 'number') {
+    properties['Approx Size'] = { number: photo.approxSizeKb || Math.max(1, Math.round((photo.hdSizeBytes || 0) / 1024)) }
+  }
 
   for (const [name, prop] of Object.entries(schema)) {
     if (prop.type === 'date' && !properties[name]) {
       properties[name] = { date: { start: photo.createdAt?.slice(0, 10) || new Date().toISOString().slice(0, 10) } }
     }
     if (prop.type === 'rich_text' && /tag|name|equipment/i.test(name) && !properties[name]) {
-      properties[name] = { rich_text: [{ text: { content: photo.tag } }] }
+      properties[name] = { rich_text: [{ text: { content: photoName } }] }
     }
-    if (prop.type === 'number' && /hd.*size|size.*hd/i.test(name) && !properties[name]) {
-      properties[name] = { number: Math.round((photo.hdSizeBytes || 0) / 1024) }
-    }
-    if (prop.type === 'number' && /sd.*size|size.*sd/i.test(name) && !properties[name]) {
-      properties[name] = { number: Math.round((photo.sdSizeBytes || 0) / 1024) }
+    if (prop.type === 'number' && /approx|hd.*size|size.*hd/i.test(name) && !properties[name]) {
+      properties[name] = { number: photo.approxSizeKb || Math.max(1, Math.round((photo.hdSizeBytes || 0) / 1024)) }
     }
   }
 
