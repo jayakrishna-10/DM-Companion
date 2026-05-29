@@ -147,3 +147,18 @@ export interface DbStats {
   syncLogCount: number
   dbSizeKB: number
 }
+
+export interface PlantPhoto {
+  id: number
+  tag: string
+  sdData: Uint8Array
+  sdMimeType: string
+  hdData: Uint8Array | null
+  hdMimeType: string
+  sdSizeBytes: number
+  hdSizeBytes: number
+  notionPageId: string | null
+  notionFileUploadId: string | null
+  synced: number
+  createdAt: string
+}

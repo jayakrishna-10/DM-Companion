@@ -1,7 +1,7 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
-import { initDatabase, getDatabase, insertEntry, insertEntryFromNotion, updateEntry, updateEntryFromNotion, deleteEntry, getEntriesByDate, getEntryCountsByType, searchEntries, getEntries, importFromCSV, clearAllData, exportAllEntries, getObjectHierarchy, getUnsyncedEntries, getExistingNotionPageIds, getEntryByNotionPageId, markAsSynced, isDuplicateEntry, deleteNotionRemovedEntries, getOpenIssues, getTags, getNoteTypes, getSourceTags, addTag, deleteTag, upsertTagsFromNotion, upsertEntryTags, insertSyncLog, getSyncLogs, getDbStats, clearSyncLogs } from '@/db/database'
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
+import { initDatabase, getDatabase, insertEntry, insertEntryFromNotion, updateEntry, updateEntryFromNotion, deleteEntry, getEntriesByDate, getEntryCountsByType, searchEntries, getEntries, importFromCSV, clearAllData, exportAllEntries, getObjectHierarchy, getUnsyncedEntries, getExistingNotionPageIds, getEntryByNotionPageId, markAsSynced, isDuplicateEntry, deleteNotionRemovedEntries, getOpenIssues, getTags, getNoteTypes, getSourceTags, addTag, deleteTag, upsertTagsFromNotion, upsertEntryTags, insertSyncLog, getSyncLogs, getDbStats, clearSyncLogs, insertPlantPhoto, getPlantPhotos, getPlantPhotoTags, getUnsyncedPlantPhotos, markPlantPhotoSynced, deletePlantPhoto } from '@/db/database'
 import { seedDatabase } from '@/db/seed'
-import type { LogEntry, LogEntryFormData, NoteType, ObjectHierarchy, OpenIssue, SyncStatus, Tag, SyncLog, DbStats } from '@/types'
+import type { LogEntry, LogEntryFormData, NoteType, ObjectHierarchy, OpenIssue, SyncStatus, Tag, SyncLog, DbStats, PlantPhoto } from '@/types'
 
 interface DatabaseContextType {
   isReady: boolean
@@ -33,9 +33,23 @@ interface DatabaseContextType {
   dbStats: DbStats | null
   clearLogs: () => void
   refreshLogs: () => void
+  photos: PlantPhoto[]
+  photoTags: string[]
+  addPhoto: (photo: { tag: string; sdData: Uint8Array; sdMimeType: string; hdData: Uint8Array; hdMimeType: string }) => number
+  removePhoto: (id: number) => void
+  refreshPhotos: () => void
 }
 
 const DatabaseContext = createContext<DatabaseContextType | null>(null)
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = ''
+  const chunkSize = 0x8000
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize))
+  }
+  return btoa(binary)
+}
 
 export function DatabaseProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false)
@@ -48,6 +62,9 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
   const [sourceTags, setSourceTags] = useState<string[]>([])
   const [syncLogs, setSyncLogs] = useState<SyncLog[]>([])
   const [dbStats, setDbStats] = useState<DbStats | null>(null)
+  const [photos, setPhotos] = useState<PlantPhoto[]>([])
+  const [photoTags, setPhotoTags] = useState<string[]>([])
+  const syncInProgressRef = useRef(false)
   const refreshEntries = useCallback(() => {
     if (!isReady) return
     const byDate = getEntriesByDate()
@@ -68,6 +85,12 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     setDbStats(getDbStats())
   }, [isReady])
 
+  const refreshPhotos = useCallback(() => {
+    if (!isReady) return
+    setPhotos(getPlantPhotos())
+    setPhotoTags(getPlantPhotoTags())
+  }, [isReady])
+
   useEffect(() => {
     initDatabase().then(() => {
       return seedDatabase()
@@ -86,8 +109,9 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
       refreshEntries()
       refreshTags()
       refreshLogs()
+      refreshPhotos()
     }
-  }, [isReady, refreshEntries, refreshTags, refreshLogs])
+  }, [isReady, refreshEntries, refreshTags, refreshLogs, refreshPhotos])
 
   useEffect(() => {
     const handleOnline = () => setSyncStatus('synced')
@@ -165,15 +189,13 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     refreshLogs()
   }, [refreshLogs])
 
-  let syncInProgress = false
-
   const syncToNotion = useCallback(async () => {
     // Prevent concurrent syncs
-    if (syncInProgress) {
+    if (syncInProgressRef.current) {
       console.log('[sync] Sync already in progress, skipping')
       return
     }
-    syncInProgress = true
+    syncInProgressRef.current = true
     setSyncStatus('syncing')
     const startTime = Date.now()
 
@@ -465,6 +487,48 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      // --- PUSH unsynced plant photos to Notion ---
+      const unsyncedPhotos = getUnsyncedPlantPhotos()
+      if (unsyncedPhotos.length > 0 && navigator.onLine) {
+        console.log(`[sync] Backing up ${unsyncedPhotos.length} plant photos to Notion...`)
+        const photoRes = await fetch('/api/notion-photo-sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            photos: unsyncedPhotos.map(photo => ({
+              id: photo.id,
+              tag: photo.tag,
+              filename: `${photo.tag.replace(/[^a-z0-9-_]+/gi, '-').replace(/^-|-$/g, '') || 'plant-photo'}-${photo.id}.jpg`,
+              mimeType: photo.hdMimeType,
+              base64Data: photo.hdData ? bytesToBase64(photo.hdData) : '',
+              hdSizeBytes: photo.hdSizeBytes,
+              sdSizeBytes: photo.sdSizeBytes,
+              createdAt: photo.createdAt,
+            })),
+          }),
+        })
+
+        if (!photoRes.ok) {
+          const data = await photoRes.json().catch(() => ({}))
+          console.error('[sync] Photo backup failed:', photoRes.status, data.error || photoRes.statusText)
+          syncError += (syncError ? '; ' : '') + `Photo backup failed: ${photoRes.status} ${data.error || photoRes.statusText}`
+          totalFailed += unsyncedPhotos.length
+        } else {
+          const data = await photoRes.json()
+          totalPushed += data.synced.length
+          totalFailed += data.failed.length
+
+          for (const synced of data.synced as { id: number; notionPageId: string; notionFileUploadId: string }[]) {
+            markPlantPhotoSynced(synced.id, synced.notionPageId, synced.notionFileUploadId)
+          }
+
+          if (data.failed.length > 0) {
+            console.error('[sync] Failed photo backups:', data.failed)
+          }
+          refreshPhotos()
+        }
+      }
+
       const finalStatus = (pullFailed || totalFailed > 0) ? 'error' : 'synced'
       setSyncStatus(finalStatus as SyncStatus)
       setLastSyncTime(new Date().toLocaleTimeString())
@@ -509,9 +573,21 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
       })
       refreshLogs()
     } finally {
-      syncInProgress = false
+      syncInProgressRef.current = false
     }
-  }, [refreshEntries, refreshTags, refreshLogs])
+  }, [refreshEntries, refreshTags, refreshLogs, refreshPhotos])
+
+  const addPhoto = useCallback((photo: { tag: string; sdData: Uint8Array; sdMimeType: string; hdData: Uint8Array; hdMimeType: string }): number => {
+    const id = insertPlantPhoto(photo)
+    refreshPhotos()
+    if (navigator.onLine) syncToNotion()
+    return id
+  }, [refreshPhotos, syncToNotion])
+
+  const removePhoto = useCallback((id: number) => {
+    deletePlantPhoto(id)
+    refreshPhotos()
+  }, [refreshPhotos])
 
   // Auto-sync on new entry
   const addEntry = useCallback((entry: LogEntryFormData): number => {
@@ -548,6 +624,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
       getHierarchy: getHierarchyFn, getOpenIssues: getOpenIssuesFn, importData, clearData: clearDataFn, exportData, syncToNotion,
       tags, noteTypes, sourceTags, addTag: addTagFn, removeTag: removeTagFn, refreshTags,
       syncLogs, dbStats, clearLogs: clearLogsFn, refreshLogs,
+      photos, photoTags, addPhoto, removePhoto, refreshPhotos,
     }}>
       {children}
     </DatabaseContext.Provider>

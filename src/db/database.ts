@@ -1,5 +1,5 @@
 import initSqlJs, { type Database, type SqlValue } from 'sql.js'
-import type { LogEntry, NoteType, ObjectOption, Tag } from '@/types'
+import type { LogEntry, NoteType, ObjectOption, PlantPhoto, Tag } from '@/types'
 import { DEFAULT_NOTE_TYPES, getNoteTypeColor } from '@/types'
 
 let db: Database | null = null
@@ -83,10 +83,30 @@ function createTables(database: Database) {
     )
   `)
 
+  database.run(`
+    CREATE TABLE IF NOT EXISTS plant_photos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tag TEXT NOT NULL,
+      sd_data BLOB NOT NULL,
+      sd_mime_type TEXT NOT NULL DEFAULT 'image/jpeg',
+      hd_data BLOB,
+      hd_mime_type TEXT NOT NULL DEFAULT 'image/jpeg',
+      sd_size_bytes INTEGER NOT NULL DEFAULT 0,
+      hd_size_bytes INTEGER NOT NULL DEFAULT 0,
+      notion_page_id TEXT,
+      notion_file_upload_id TEXT,
+      synced INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+    )
+  `)
+
   database.run(`CREATE INDEX IF NOT EXISTS idx_entries_date ON log_entries(date DESC)`)
   database.run(`CREATE INDEX IF NOT EXISTS idx_entries_note_type ON log_entries(note_type)`)
   database.run(`CREATE INDEX IF NOT EXISTS idx_entries_object ON log_entries(object)`)
   database.run(`CREATE INDEX IF NOT EXISTS idx_entries_synced ON log_entries(synced)`)
+  database.run(`CREATE INDEX IF NOT EXISTS idx_photos_created ON plant_photos(created_at DESC)`)
+  database.run(`CREATE INDEX IF NOT EXISTS idx_photos_tag ON plant_photos(tag)`)
+  database.run(`CREATE INDEX IF NOT EXISTS idx_photos_synced ON plant_photos(synced)`)
 
   const existing = database.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='schema_version'")
   if (existing.length === 0 || existing[0].values.length === 0) {
@@ -104,7 +124,26 @@ function createTables(database: Database) {
     }
   } catch { /* column already exists */ }
 
+  migratePlantPhotos(database)
+
   scheduleSave()
+}
+
+function migratePlantPhotos(database: Database) {
+  const cols = database.exec('PRAGMA table_info(plant_photos)')
+  if (cols.length === 0) return
+  const columnNames = new Set(cols[0].values.map((c: unknown[]) => c[1] as string))
+  const migrations: string[] = []
+
+  if (!columnNames.has('sd_mime_type')) migrations.push("ALTER TABLE plant_photos ADD COLUMN sd_mime_type TEXT NOT NULL DEFAULT 'image/jpeg'")
+  if (!columnNames.has('hd_mime_type')) migrations.push("ALTER TABLE plant_photos ADD COLUMN hd_mime_type TEXT NOT NULL DEFAULT 'image/jpeg'")
+  if (!columnNames.has('sd_size_bytes')) migrations.push('ALTER TABLE plant_photos ADD COLUMN sd_size_bytes INTEGER NOT NULL DEFAULT 0')
+  if (!columnNames.has('hd_size_bytes')) migrations.push('ALTER TABLE plant_photos ADD COLUMN hd_size_bytes INTEGER NOT NULL DEFAULT 0')
+  if (!columnNames.has('notion_page_id')) migrations.push('ALTER TABLE plant_photos ADD COLUMN notion_page_id TEXT')
+  if (!columnNames.has('notion_file_upload_id')) migrations.push('ALTER TABLE plant_photos ADD COLUMN notion_file_upload_id TEXT')
+  if (!columnNames.has('synced')) migrations.push('ALTER TABLE plant_photos ADD COLUMN synced INTEGER NOT NULL DEFAULT 0')
+
+  for (const migration of migrations) database.run(migration)
 }
 
 async function loadFromIndexedDB(): Promise<Uint8Array | null> {
@@ -434,6 +473,81 @@ export function markAsSynced(ids: number[]): void {
   const d = getDatabase()
   const placeholders = ids.map(() => '?').join(',')
   d.run(`UPDATE log_entries SET synced = 1 WHERE id IN (${placeholders})`, ids)
+  scheduleSave()
+}
+
+function rowToPhoto(row: unknown[]): PlantPhoto {
+  return {
+    id: row[0] as number,
+    tag: row[1] as string,
+    sdData: row[2] as Uint8Array,
+    sdMimeType: row[3] as string,
+    hdData: row[4] as Uint8Array | null,
+    hdMimeType: row[5] as string,
+    sdSizeBytes: row[6] as number,
+    hdSizeBytes: row[7] as number,
+    notionPageId: row[8] as string | null,
+    notionFileUploadId: row[9] as string | null,
+    synced: row[10] as number,
+    createdAt: row[11] as string,
+  }
+}
+
+export function insertPlantPhoto(photo: {
+  tag: string
+  sdData: Uint8Array
+  sdMimeType: string
+  hdData: Uint8Array
+  hdMimeType: string
+}): number {
+  const d = getDatabase()
+  d.run(
+    `INSERT INTO plant_photos
+      (tag, sd_data, sd_mime_type, hd_data, hd_mime_type, sd_size_bytes, hd_size_bytes)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [photo.tag.trim(), photo.sdData, photo.sdMimeType, photo.hdData, photo.hdMimeType, photo.sdData.byteLength, photo.hdData.byteLength]
+  )
+  const result = d.exec('SELECT last_insert_rowid() as id')
+  const id = result[0].values[0][0] as number
+  scheduleSave()
+  return id
+}
+
+export function getPlantPhotos(limit = 24): PlantPhoto[] {
+  const d = getDatabase()
+  const result = d.exec('SELECT * FROM plant_photos ORDER BY id DESC LIMIT ?', [limit])
+  if (result.length === 0) return []
+  return result[0].values.map(rowToPhoto)
+}
+
+export function getPlantPhotoTags(): string[] {
+  const d = getDatabase()
+  const result = d.exec('SELECT DISTINCT tag FROM plant_photos WHERE tag != "" ORDER BY tag COLLATE NOCASE')
+  if (result.length === 0) return []
+  return result[0].values.map((row: unknown[]) => row[0] as string)
+}
+
+export function getUnsyncedPlantPhotos(): PlantPhoto[] {
+  const d = getDatabase()
+  const result = d.exec('SELECT * FROM plant_photos WHERE synced = 0 AND hd_data IS NOT NULL ORDER BY id ASC')
+  if (result.length === 0) return []
+  return result[0].values.map(rowToPhoto)
+}
+
+export function markPlantPhotoSynced(id: number, notionPageId: string, notionFileUploadId: string): void {
+  const d = getDatabase()
+  d.run(
+    `UPDATE plant_photos
+     SET notion_page_id = ?, notion_file_upload_id = ?, synced = 1, hd_data = NULL
+     WHERE id = ?`,
+    [notionPageId, notionFileUploadId, id]
+  )
+  scheduleSave()
+}
+
+export function deletePlantPhoto(id: number): void {
+  const d = getDatabase()
+  d.run('DELETE FROM plant_photos WHERE id = ?', [id])
   scheduleSave()
 }
 

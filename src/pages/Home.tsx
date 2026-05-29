@@ -1,13 +1,14 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useDatabase } from '@/hooks/useDatabase'
 import { EntryDetailSheet } from '@/components/entry/EntryDetailSheet'
+import { PhotoCaptureSheet } from '@/components/photo/PhotoCaptureSheet'
 import { HomeSkeleton } from '@/components/ui/Skeleton'
 import { toast } from '@/components/ui/Toaster'
-import { Plus } from 'lucide-react'
+import { Camera, CheckCircle2, CloudOff, Plus, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { AnimatePresence, motion } from 'framer-motion'
 import { TimelineCard, TimelineLine } from '@/components/timeline'
-import type { LogEntry } from '@/types'
+import type { LogEntry, PlantPhoto } from '@/types'
 
 function formatDate(dateStr: string): string {
   try {
@@ -20,9 +21,10 @@ function formatDate(dateStr: string): string {
 }
 
 export function Home() {
-  const { isReady, entries, removeEntry } = useDatabase()
+  const { isReady, entries, removeEntry, photos, photoTags, addPhoto, removePhoto } = useDatabase()
   const [selectedEntry, setSelectedEntry] = useState<LogEntry | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [photoSheetOpen, setPhotoSheetOpen] = useState(false)
   const navigate = useNavigate()
 
   const sortedEntries = useMemo(() => {
@@ -45,15 +47,43 @@ export function Home() {
   return (
     <div className="pb-4 bg-neutral-950 min-h-screen">
       <div className="px-4 pt-4 pb-3">
-        <motion.button
-          whileTap={{ scale: 0.97 }}
-          onClick={() => navigate('/new')}
-          className="w-full gradient-cta rounded-xl p-4 flex items-center justify-center gap-2 text-white font-semibold shadow-lg shadow-teal-500/10"
-        >
-          <Plus size={22} strokeWidth={2.5} />
-          Add Log Entry
-        </motion.button>
+        <div className="grid grid-cols-2 gap-3">
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => navigate('/new')}
+            className="gradient-cta rounded-xl p-4 flex items-center justify-center gap-2 text-white font-semibold shadow-lg shadow-teal-500/10"
+          >
+            <Plus size={21} strokeWidth={2.5} />
+            Add Log
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => setPhotoSheetOpen(true)}
+            className="rounded-xl p-4 flex items-center justify-center gap-2 text-neutral-100 font-semibold border border-neutral-800 bg-neutral-900 shadow-lg shadow-black/20"
+          >
+            <Camera size={21} strokeWidth={2.5} />
+            Take Photo
+          </motion.button>
+        </div>
       </div>
+
+      {photos.length > 0 && (
+        <section className="px-4 mb-5">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider font-mono">
+              EQUIPMENT PHOTOS
+            </h3>
+            <span className="text-[9px] text-neutral-600 font-medium bg-neutral-800/80 px-1.5 py-0.5 rounded-md border border-neutral-800">
+              {photos.length}
+            </span>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 snap-x">
+            {photos.slice(0, 12).map(photo => (
+              <PhotoCard key={photo.id} photo={photo} onDelete={(id) => { removePhoto(id); toast('Photo deleted') }} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {todayEntries.length > 0 && (
         <div className="px-4 mb-4">
@@ -114,6 +144,43 @@ export function Home() {
           navigate(`/new?duplicate=${entry.id}`)
         }}
       />
+
+      <PhotoCaptureSheet
+        isOpen={photoSheetOpen}
+        tags={photoTags}
+        onClose={() => setPhotoSheetOpen(false)}
+        onSave={addPhoto}
+      />
+    </div>
+  )
+}
+
+function PhotoCard({ photo, onDelete }: { photo: PlantPhoto; onDelete: (id: number) => void }) {
+  const url = useMemo(() => {
+    const imageBuffer = photo.sdData.buffer.slice(photo.sdData.byteOffset, photo.sdData.byteOffset + photo.sdData.byteLength) as ArrayBuffer
+    const blob = new Blob([imageBuffer], { type: photo.sdMimeType })
+    return URL.createObjectURL(blob)
+  }, [photo.sdData, photo.sdMimeType])
+
+  useEffect(() => {
+    return () => URL.revokeObjectURL(url)
+  }, [url])
+
+  return (
+    <div className="relative w-36 flex-shrink-0 snap-start rounded-2xl border border-neutral-800 bg-neutral-900 overflow-hidden">
+      <div className="aspect-square bg-neutral-950">
+        {url && <img src={url} alt={photo.tag} className="h-full w-full object-cover" />}
+      </div>
+      <div className="p-2">
+        <p className="text-xs font-medium text-neutral-200 truncate" title={photo.tag}>{photo.tag}</p>
+        <div className="mt-1 flex items-center justify-between text-[10px] text-neutral-500">
+          <span>{Math.max(1, Math.round(photo.sdSizeBytes / 1024))} KB</span>
+          {photo.synced ? <CheckCircle2 size={12} className="text-emerald-400" /> : <CloudOff size={12} className="text-amber-400" />}
+        </div>
+      </div>
+      <button onClick={() => onDelete(photo.id)} className="absolute right-1.5 top-1.5 h-7 w-7 rounded-full bg-black/60 text-neutral-300 flex items-center justify-center backdrop-blur">
+        <Trash2 size={13} />
+      </button>
     </div>
   )
 }
