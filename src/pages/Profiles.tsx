@@ -22,6 +22,7 @@ import type { LogEntry, ObjectOption } from '@/types'
 import { getNoteTypeColor } from '@/types'
 
 type Severity = 'critical' | 'warning' | 'normal'
+type TypeSortMode = 'urgency' | 'alphabetical'
 
 interface AssetNode extends ObjectOption {
   entries: LogEntry[]
@@ -82,6 +83,12 @@ function mergeSeverity(a: Severity, b: Severity): Severity {
   return 'normal'
 }
 
+function getSeverityRank(severity: Severity) {
+  if (severity === 'critical') return 0
+  if (severity === 'warning') return 1
+  return 2
+}
+
 function getAssetSeverity(entries: LogEntry[], resolvedObjects: Set<string>): Severity {
   const objectName = entries[0]?.object?.toLowerCase().trim()
   const isResolved = objectName ? resolvedObjects.has(objectName) : false
@@ -135,6 +142,7 @@ export function Profiles() {
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false)
   const [activeFilter, setActiveFilter] = useState<string>('all')
+  const [typeSortMode, setTypeSortMode] = useState<TypeSortMode>('urgency')
   const [mobileStep, setMobileStep] = useState<MobileStep>('types')
 
   const hierarchy = getHierarchy()
@@ -191,9 +199,22 @@ export function Profiles() {
     })
   }, [entriesByObject, hierarchy, resolvedObjects])
 
+  const sortedTypeNodes = useMemo(() => {
+    return [...topology].sort((a, b) => {
+      if (typeSortMode === 'alphabetical') {
+        return a.type.localeCompare(b.type)
+      }
+
+      return getSeverityRank(a.severity) - getSeverityRank(b.severity) ||
+        b.entryCount - a.entryCount ||
+        b.objectCount - a.objectCount ||
+        a.type.localeCompare(b.type)
+    })
+  }, [topology, typeSortMode])
+
   const selectedTypeNode = useMemo(
-    () => topology.find(node => node.type === selectedType) || topology[0],
-    [selectedType, topology],
+    () => sortedTypeNodes.find(node => node.type === selectedType) || sortedTypeNodes[0],
+    [selectedType, sortedTypeNodes],
   )
 
   const selectedAsset = useMemo(() => {
@@ -347,19 +368,34 @@ export function Profiles() {
         <section className="flex min-w-0 flex-col gap-3 lg:min-h-0 lg:overflow-hidden">
           {/* Type panels */}
           {showTypesPanel && (
-            <motion.div
-              initial={isMobile ? { opacity: 0, x: -20 } : false}
-              animate={{ opacity: 1, x: 0 }}
-              className="grid grid-cols-2 gap-2 sm:grid-cols-3"
-            >
-              {topology.map(typeNode => (
-                <TypePanel
-                  key={typeNode.type}
-                  typeNode={typeNode}
-                  active={selectedTypeNode?.type === typeNode.type}
-                  onClick={() => selectType(typeNode)}
-                />
-              ))}
+            <motion.div initial={isMobile ? { opacity: 0, x: -20 } : false} animate={{ opacity: 1, x: 0 }}>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+                  Equipment Types
+                </p>
+                <div className="flex rounded-lg border border-neutral-800 bg-neutral-900/60 p-0.5">
+                  <TypeSortButton
+                    active={typeSortMode === 'urgency'}
+                    label="Urgency"
+                    onClick={() => setTypeSortMode('urgency')}
+                  />
+                  <TypeSortButton
+                    active={typeSortMode === 'alphabetical'}
+                    label="A-Z"
+                    onClick={() => setTypeSortMode('alphabetical')}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {sortedTypeNodes.map(typeNode => (
+                  <TypePanel
+                    key={typeNode.type}
+                    typeNode={typeNode}
+                    active={selectedTypeNode?.type === typeNode.type}
+                    onClick={() => selectType(typeNode)}
+                  />
+                ))}
+              </div>
             </motion.div>
           )}
 
@@ -685,6 +721,30 @@ function TypePanel({
         <span>{typeNode.entryCount} LOG</span>
       </div>
     </motion.button>
+  )
+}
+
+function TypeSortButton({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-md px-2 py-1 text-[9px] font-semibold uppercase tracking-wide transition-colors ${
+        active
+          ? 'bg-neutral-800 text-teal-300 shadow-sm'
+          : 'text-neutral-500 hover:text-neutral-300'
+      }`}
+      aria-pressed={active}
+    >
+      {label}
+    </button>
   )
 }
 
