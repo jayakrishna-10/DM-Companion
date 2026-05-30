@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Check } from 'lucide-react'
+import { Check, CloudOff } from 'lucide-react'
 import type { LogEntry } from '@/types'
 import { getNoteTypeColor } from '@/types'
 
@@ -17,7 +17,7 @@ function formatDate(dateStr: string): string {
  *  Lines starting with "- " or "• " are treated as sub-items.
  *  Everything before the first sub-item is the main narrative.
  */
-export function parseSubEntries(note: string): { narrative: string; subs: string[] } {
+function parseSubEntries(note: string): { narrative: string; subs: string[] } {
   const lines = note.split('\n')
   const narrativeLines: string[] = []
   const subs: string[] = []
@@ -47,6 +47,12 @@ export interface TimelineCardProps {
   showObjectLink?: boolean
   /** Navigate callback for object links — if provided, object names become clickable */
   onObjectClick?: (objectName: string) => void
+  /** Hide per-card date when the parent group already labels the date */
+  hideDate?: boolean
+  /** Show source metadata for faster scanning */
+  showSource?: boolean
+  /** Show local-only sync state */
+  showSyncState?: boolean
 }
 
 export function TimelineCard({
@@ -55,8 +61,12 @@ export function TimelineCard({
   extra,
   showObjectLink,
   onObjectClick,
+  hideDate,
+  showSource,
+  showSyncState,
 }: TimelineCardProps) {
   const { narrative, subs } = parseSubEntries(entry.note)
+  const typeColor = getNoteTypeColor(entry.noteType)
 
   return (
     <motion.div
@@ -73,20 +83,28 @@ export function TimelineCard({
       {/* Card body */}
       <button
         onClick={onClick}
-        className="w-full text-left p-3 rounded-xl bg-neutral-900/60 border border-neutral-800/50 hover:bg-neutral-900/90 hover:border-neutral-800 transition-all duration-150 active:scale-[0.98]"
+        className="relative w-full overflow-hidden text-left p-3 rounded-xl bg-neutral-900/60 border border-neutral-800/50 hover:bg-neutral-900/90 hover:border-neutral-800 transition-all duration-150 active:scale-[0.98]"
       >
+        <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: typeColor }} />
         {/* Metadata line */}
         <div className="flex items-center gap-2 mb-1">
           <span
             className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md border border-neutral-800 bg-neutral-800/80"
-            style={{ color: getNoteTypeColor(entry.noteType) }}
+            style={{ color: typeColor }}
           >
             {entry.noteType}
           </span>
           {extra}
-          <span className="text-[10px] font-mono text-neutral-500 ml-auto">
-            {formatDate(entry.date)}
-          </span>
+          {showSyncState && !entry.synced && (
+            <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-amber-300 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-md">
+              <CloudOff size={10} /> Local
+            </span>
+          )}
+          {!hideDate && (
+            <span className="text-[10px] font-mono text-neutral-500 ml-auto">
+              {formatDate(entry.date)}
+            </span>
+          )}
         </div>
 
         {/* Event title — when no sub-entries, show full narrative as title */}
@@ -104,17 +122,22 @@ export function TimelineCard({
         )}
 
         {/* Object metadata */}
-        {entry.object && (
-          <div className="flex items-center gap-1.5 text-[10px] text-neutral-500 mt-1.5">
-            {showObjectLink && onObjectClick ? (
+        {(entry.object || (showSource && entry.source)) && (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-neutral-500 mt-1.5">
+            {entry.object && showObjectLink && onObjectClick ? (
               <span
                 className="text-teal-400/80 hover:text-teal-400 font-medium cursor-pointer transition-colors"
                 onClick={(e) => { e.stopPropagation(); onObjectClick(entry.object) }}
               >
                 {entry.object}
               </span>
-            ) : (
+            ) : entry.object ? (
               <span className="text-neutral-300 font-medium">{entry.object}</span>
+            ) : null}
+            {showSource && entry.source && (
+              <span className="truncate text-neutral-500">
+                {entry.object ? '· ' : ''}{entry.source}
+              </span>
             )}
           </div>
         )}
