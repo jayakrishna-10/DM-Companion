@@ -5,9 +5,9 @@ import { searchEntries } from '@/db/database'
 import { EntryDetailSheet } from '@/components/entry/EntryDetailSheet'
 import { toast } from '@/components/ui/Toaster'
 import { AnimatePresence } from 'framer-motion'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Search, X } from 'lucide-react'
 import { TimelineCard, TimelineLine } from '@/components/timeline'
-import type { LogEntry } from '@/types'
+import type { LogEntry, ObjectOption } from '@/types'
 import { getNoteTypeColor } from '@/types'
 
 function formatDate(dateStr: string): string {
@@ -23,13 +23,53 @@ function formatDate(dateStr: string): string {
 export function Equipment() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { removeEntry, noteTypes } = useDatabase()
+  const { removeEntry, noteTypes, getHierarchy } = useDatabase()
 
   const objectName = searchParams.get('object')
 
   const [selectedEntry, setSelectedEntry] = useState<LogEntry | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState<string>('all')
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || objectName || '')
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false)
+
+  const hierarchy = getHierarchy()
+
+  const allProfiles = useMemo(() => {
+    const profiles: ObjectOption[] = []
+    for (const group of Object.keys(hierarchy.objects)) {
+      profiles.push(...(hierarchy.objects[group] || []))
+    }
+
+    return profiles
+      .filter((profile, index, list) => list.findIndex(item => item.object === profile.object) === index)
+      .sort((a, b) => a.object.localeCompare(b.object))
+  }, [hierarchy])
+
+  const profileSuggestions = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim()
+    if (!q) return []
+
+    return allProfiles
+      .filter(profile =>
+        profile.object.toLowerCase().includes(q) ||
+        profile.objectGroup.toLowerCase().includes(q) ||
+        profile.objectType.toLowerCase().includes(q),
+      )
+      .sort((a, b) => {
+        const aExact = a.object.toLowerCase() === q ? 0 : 1
+        const bExact = b.object.toLowerCase() === q ? 0 : 1
+        return aExact - bExact || a.object.localeCompare(b.object)
+      })
+      .slice(0, 3)
+  }, [allProfiles, searchQuery])
+
+  const openProfile = (profile: ObjectOption) => {
+    setSearchQuery(profile.object)
+    setShowSearchSuggestions(false)
+    setActiveFilter('all')
+    navigate(`/equipment?object=${encodeURIComponent(profile.object)}&q=${encodeURIComponent(profile.object)}`)
+  }
 
   const entries = useMemo(() => {
     if (!objectName) return []
@@ -76,21 +116,6 @@ export function Equipment() {
     return map
   }, [filteredEntries])
 
-  if (!objectName) {
-    return (
-      <div className="flex flex-col h-full">
-        <div className="px-4 pt-4 pb-24">
-          <div className="py-16 text-center">
-            <p className="text-text-muted text-base">No equipment specified</p>
-            <p className="text-text-muted text-sm mt-1">
-              Use the search or navigation to find equipment entries.
-            </p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="flex flex-col h-full bg-neutral-950">
       {/* Back button + header */}
@@ -118,6 +143,55 @@ export function Equipment() {
             </div>
           </div>
         )}
+
+        {!meta && (
+          <div>
+            <h1 className="text-xl font-bold text-neutral-200">Equipment profiles</h1>
+            <p className="mt-0.5 text-[10px] text-neutral-500">Search any profile, group, or type.</p>
+          </div>
+        )}
+
+        <div className="relative">
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => {
+              setSearchQuery(e.target.value)
+              setShowSearchSuggestions(true)
+            }}
+            onFocus={() => setShowSearchSuggestions(true)}
+            placeholder="Search all profiles..."
+            className="h-9 w-full rounded-lg border border-neutral-800/50 bg-neutral-900/60 pl-8 pr-8 text-xs text-neutral-200 transition-all placeholder:text-neutral-500 focus:border-teal-500/50 focus:outline-none focus:ring-1 focus:ring-teal-500/20"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => {
+                setSearchQuery('')
+                setShowSearchSuggestions(false)
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300"
+              aria-label="Clear search"
+            >
+              <X size={12} />
+            </button>
+          )}
+          {showSearchSuggestions && profileSuggestions.length > 0 && (
+            <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950 shadow-2xl shadow-black/40">
+              {profileSuggestions.map(profile => (
+                <button
+                  key={`${profile.objectGroup}-${profile.object}`}
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => openProfile(profile)}
+                  className="flex w-full flex-col px-3 py-2 text-left transition-colors hover:bg-neutral-900"
+                >
+                  <span className="truncate font-mono text-xs font-bold text-neutral-200">{profile.object}</span>
+                  <span className="truncate text-[10px] text-neutral-500">{profile.objectGroup} · {profile.objectType}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Filter pills */}
@@ -153,7 +227,9 @@ export function Equipment() {
           <div className="py-16 text-center">
             <p className="text-neutral-500 text-sm">No entries found</p>
             <p className="text-neutral-600 text-[11px] mt-1">
-              {activeFilter !== 'all'
+              {!objectName
+                ? 'Search above to open an equipment profile.'
+                : activeFilter !== 'all'
                 ? `No ${activeFilter.toLowerCase()} entries for this equipment.`
                 : 'This equipment has no log entries yet.'}
             </p>
