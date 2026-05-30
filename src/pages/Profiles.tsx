@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowUpRight,
@@ -43,6 +43,8 @@ interface TypeNode {
   objectCount: number
   entryCount: number
 }
+
+type SearchAssetNode = AssetNode & { type: string; group: string }
 
 const TYPE_META: Record<string, { code: string; color: string; accent: string }> = {
   pumps: { code: 'P', color: 'text-teal-300', accent: 'border-teal-500/50' },
@@ -122,6 +124,7 @@ type MobileStep = 'types' | 'groups' | 'assets' | 'detail'
 
 export function Profiles() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { entries, getHierarchy, removeEntry } = useDatabase()
   const isMobile = useMediaQuery('(max-width: 1023px)')
 
@@ -129,7 +132,8 @@ export function Profiles() {
   const [selectedObject, setSelectedObject] = useState<string>('')
   const [selectedEntry, setSelectedEntry] = useState<LogEntry | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false)
   const [activeFilter, setActiveFilter] = useState<string>('all')
   const [mobileStep, setMobileStep] = useState<MobileStep>('types')
 
@@ -200,6 +204,14 @@ export function Profiles() {
 
   const selectedEntries = useMemo(() => selectedAsset?.entries || [], [selectedAsset])
 
+  const allAssets = useMemo(() => {
+    return topology.flatMap(typeNode =>
+      typeNode.groups.flatMap(group =>
+        group.objects.map(asset => ({ ...asset, type: typeNode.type, group: group.group })),
+      ),
+    )
+  }, [topology])
+
   const filteredEntries = useMemo(() => {
     if (activeFilter === 'all') return selectedEntries
     return selectedEntries.filter(e => e.noteType === activeFilter)
@@ -214,24 +226,59 @@ export function Profiles() {
     return map
   }, [filteredEntries])
 
-  // Filtered groups/assets for search
+  const searchSuggestions = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim()
+    if (!q) return []
+
+    return allAssets
+      .filter(asset =>
+        asset.object.toLowerCase().includes(q) ||
+        asset.objectGroup.toLowerCase().includes(q) ||
+        asset.objectType.toLowerCase().includes(q) ||
+        asset.group.toLowerCase().includes(q) ||
+        asset.type.toLowerCase().includes(q),
+      )
+      .sort((a, b) => {
+        const aExact = a.object.toLowerCase() === q ? 0 : 1
+        const bExact = b.object.toLowerCase() === q ? 0 : 1
+        return aExact - bExact || b.entries.length - a.entries.length || a.object.localeCompare(b.object)
+      })
+      .slice(0, 3)
+  }, [allAssets, searchQuery])
+
+  const selectSearchResult = (asset: SearchAssetNode) => {
+    setSelectedType(asset.type)
+    setSelectedObject(asset.object)
+    setActiveFilter('all')
+    setShowSearchSuggestions(false)
+    if (isMobile) setMobileStep('detail')
+  }
+
+  // Filtered groups/assets for universal profile search
   const filteredGroups = useMemo(() => {
     if (!selectedTypeNode || !searchQuery.trim()) return selectedTypeNode?.groups || []
     const q = searchQuery.toLowerCase().trim()
-    return selectedTypeNode.groups.map(group => ({
-      ...group,
-      objects: group.objects.filter(asset =>
-        asset.object.toLowerCase().includes(q) ||
-        asset.objectGroup.toLowerCase().includes(q)
-      ),
-    })).filter(group => group.objects.length > 0)
-  }, [selectedTypeNode, searchQuery])
+    return topology.flatMap(typeNode =>
+      typeNode.groups
+        .map(group => ({
+          ...group,
+          group: typeNode.type === selectedTypeNode.type ? group.group : `${typeNode.type} / ${group.group}`,
+          objects: group.objects.filter(asset =>
+            asset.object.toLowerCase().includes(q) ||
+            asset.objectGroup.toLowerCase().includes(q) ||
+            asset.objectType.toLowerCase().includes(q) ||
+            group.group.toLowerCase().includes(q) ||
+            typeNode.type.toLowerCase().includes(q),
+          ),
+        }))
+        .filter(group => group.objects.length > 0),
+    )
+  }, [selectedTypeNode, searchQuery, topology])
 
   const selectType = (typeNode: TypeNode) => {
     setSelectedType(typeNode.type)
     const firstAsset = typeNode.groups.flatMap(group => group.objects)[0]
     setSelectedObject(firstAsset?.object || '')
-    setSearchQuery('')
     if (isMobile) setMobileStep('groups')
   }
 
@@ -297,7 +344,7 @@ export function Profiles() {
     <div className="flex h-full flex-col bg-neutral-950 text-neutral-100">
       <div className="grid flex-1 gap-3 px-3 pt-3 pb-24 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.72fr)] lg:overflow-hidden lg:px-4">
         {/* Left column: Types + Matrix */}
-        <section className="min-w-0 space-y-3 lg:overflow-hidden">
+        <section className="flex min-w-0 flex-col gap-3 lg:min-h-0 lg:overflow-hidden">
           {/* Type panels */}
           {showTypesPanel && (
             <motion.div
@@ -321,7 +368,7 @@ export function Profiles() {
             <motion.div
               initial={isMobile ? { opacity: 0, x: 20 } : false}
               animate={{ opacity: 1, x: 0 }}
-              className="rounded-xl border border-neutral-800/70 bg-neutral-950/60 p-3"
+              className="flex min-h-[calc(100vh-15rem)] flex-col rounded-xl border border-neutral-800/70 bg-neutral-950/60 p-3 lg:min-h-0 lg:flex-1"
             >
               {/* Mobile back button */}
               {isMobile && mobileStep !== 'types' && (
@@ -355,23 +402,48 @@ export function Profiles() {
                 <input
                   type="text"
                   value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="Search assets..."
+                  onChange={e => {
+                    setSearchQuery(e.target.value)
+                    setShowSearchSuggestions(true)
+                  }}
+                  onFocus={() => setShowSearchSuggestions(true)}
+                  placeholder="Search all profiles..."
                   className="w-full h-8 pl-8 pr-3 rounded-lg bg-neutral-900/60 border border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20 transition-all"
                 />
                 {searchQuery && (
                   <button
-                    onClick={() => setSearchQuery('')}
+                    onClick={() => {
+                      setSearchQuery('')
+                      setShowSearchSuggestions(false)
+                    }}
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300"
                     aria-label="Clear search"
                   >
                     <X size={12} />
                   </button>
                 )}
+                {showSearchSuggestions && searchSuggestions.length > 0 && (
+                  <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950 shadow-2xl shadow-black/40">
+                    {searchSuggestions.map(asset => (
+                      <button
+                        key={`${asset.type}-${asset.object}`}
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={() => selectSearchResult(asset)}
+                        className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-neutral-900"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate font-mono text-xs font-bold text-neutral-200">{asset.object}</span>
+                          <span className="block truncate text-[10px] text-neutral-500">{asset.objectGroup} · {asset.type}</span>
+                        </span>
+                        <SeverityDot severity={asset.severity} />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Groups / Assets */}
-              <div className="max-h-[250px] space-y-4 overflow-y-auto pr-1 lg:max-h-none">
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
                 {filteredGroups.length === 0 ? (
                   <div className="py-8 text-center">
                     <p className="text-xs text-neutral-500">No assets match your search</p>
@@ -383,8 +455,10 @@ export function Profiles() {
                       group={group}
                       selectedObject={selectedAsset?.object || ''}
                       onSelectObject={(obj) => {
-                        const asset = group.objects.find(a => a.object === obj)
-                        if (asset) selectAsset(asset)
+                        const asset = allAssets.find(a => a.object === obj)
+                        const fallbackAsset = group.objects.find(a => a.object === obj)
+                        if (asset) selectSearchResult(asset)
+                        else if (fallbackAsset) selectAsset(fallbackAsset)
                       }}
                     />
                   ))
@@ -463,7 +537,10 @@ export function Profiles() {
                     <span className="hidden sm:inline">New log</span>
                   </button>
                   <button
-                    onClick={() => navigate(`/equipment?object=${encodeURIComponent(selectedAsset.object)}`)}
+                    onClick={() => {
+                      const q = searchQuery.trim() ? `&q=${encodeURIComponent(searchQuery.trim())}` : ''
+                      navigate(`/equipment?object=${encodeURIComponent(selectedAsset.object)}${q}`)
+                    }}
                     className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-900/60 text-neutral-400 transition-colors hover:border-teal-500/40 hover:text-teal-300"
                     aria-label={`Open equipment profile for ${selectedAsset.object}`}
                     title={`Open equipment profile for ${selectedAsset.object}`}
