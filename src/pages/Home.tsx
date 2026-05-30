@@ -44,8 +44,9 @@ export function Home() {
 
   const openIssues = useMemo(() => {
     void entryRevision
+    if (!isReady) return []
     return getOpenIssues().filter(issue => !issue.resolved)
-  }, [getOpenIssues, entryRevision])
+  }, [getOpenIssues, entryRevision, isReady])
   const recentEquipmentTags = useMemo(() => {
     const seen = new Set<string>()
     const tags: string[] = []
