@@ -47,7 +47,7 @@ export function History() {
           />
         </div>
 
-        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
+        <div className="flex flex-wrap gap-1.5 pb-1">
           <FilterPill label="All" count={counts.all || 0} active={activeType === 'all'} onClick={() => setActiveType('all')} />
           {noteTypes.map(type => (
             <FilterPill
