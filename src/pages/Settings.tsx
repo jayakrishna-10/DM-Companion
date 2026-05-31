@@ -40,9 +40,10 @@ export function Settings() {
       toast('No data to export', 'info')
       return
     }
-    const headers = ['Note', 'Date', 'Note Type', 'Object', 'Object Group', 'Object Type', 'Source']
+    const headers = ['Note', 'Comment', 'Date', 'Note Type', 'Object', 'Object Group', 'Object Type', 'Source']
     const rows = data.map(e => [
       `"${e.note.replace(/"/g, '""')}"`,
+      `"${e.comment.replace(/"/g, '""')}"`,
       e.date,
       e.noteType,
       e.object,
@@ -82,6 +83,7 @@ export function Settings() {
         }
         return {
           note: (row['Note'] || '').trim(),
+          comment: (row['Comment'] || '').trim(),
           date: dateStr,
           noteType: (row['Note Type'] || 'Activity').trim(),
           object: (row['Object'] || '').trim(),

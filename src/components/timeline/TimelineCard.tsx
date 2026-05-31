@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { Check } from 'lucide-react'
 import type { LogEntry } from '@/types'
 import { getNoteTypeColor } from '@/types'
+import { CommentThread } from '@/components/entry/CommentThread'
 
 function formatDate(dateStr: string): string {
   try {
@@ -134,6 +135,8 @@ export function TimelineCard({
             </div>
           </div>
         )}
+
+        <CommentThread comment={entry.comment} compact className="mt-2.5" />
       </button>
     </motion.div>
   )

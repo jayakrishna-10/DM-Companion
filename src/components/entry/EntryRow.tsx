@@ -2,6 +2,7 @@ import type { LogEntry } from '@/types'
 import { Badge } from '@/components/ui/Badge'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router'
+import { CommentThread } from '@/components/entry/CommentThread'
 
 interface EntryRowProps {
   entry: LogEntry
@@ -49,6 +50,7 @@ export function EntryRow({ entry, onClick }: EntryRowProps) {
           </>
         )}
       </div>
+      <CommentThread comment={entry.comment} compact className="mt-2" />
     </motion.button>
   )
 }

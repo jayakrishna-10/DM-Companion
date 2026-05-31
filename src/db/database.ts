@@ -42,7 +42,8 @@ function createTables(database: Database) {
       notion_page_id TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
-      synced INTEGER NOT NULL DEFAULT 0
+      synced INTEGER NOT NULL DEFAULT 0,
+      comment TEXT NOT NULL DEFAULT ''
     )
   `)
 
@@ -135,6 +136,17 @@ function createTables(database: Database) {
       const hasUpdated = cols[0].values.some((c: unknown[]) => c[1] === 'updated')
       if (!hasUpdated) {
         database.exec("ALTER TABLE sync_logs ADD COLUMN updated INTEGER DEFAULT 0")
+      }
+    }
+  } catch { /* column already exists */ }
+
+  // Migration: add comment column to log_entries if missing
+  try {
+    const cols = database.exec('PRAGMA table_info(log_entries)')
+    if (cols.length > 0) {
+      const hasComment = cols[0].values.some((c: unknown[]) => c[1] === 'comment')
+      if (!hasComment) {
+        database.exec("ALTER TABLE log_entries ADD COLUMN comment TEXT NOT NULL DEFAULT ''")
       }
     }
   } catch { /* column already exists */ }
@@ -240,6 +252,7 @@ export function getDatabase(): Database {
 
 export function insertEntry(entry: {
   note: string
+  comment?: string
   date: string
   noteType: NoteType
   object?: string
@@ -249,8 +262,8 @@ export function insertEntry(entry: {
 }): number {
   const d = getDatabase()
   d.run(
-    'INSERT INTO log_entries (note, date, note_type, object, object_group, object_type, source) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [entry.note, entry.date, entry.noteType, entry.object || '', entry.objectGroup || '', entry.objectType || '', entry.source || '']
+    'INSERT INTO log_entries (note, comment, date, note_type, object, object_group, object_type, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [entry.note, entry.comment || '', entry.date, entry.noteType, entry.object || '', entry.objectGroup || '', entry.objectType || '', entry.source || '']
   )
   const result = d.exec('SELECT last_insert_rowid() as id')
   const id = result[0].values[0][0] as number
@@ -259,6 +272,7 @@ export function insertEntry(entry: {
 }
 
 export function updateEntry(id: number, entry: Partial<{
+  comment: string
   noteType: NoteType
   object: string
   objectGroup: string
@@ -269,6 +283,7 @@ export function updateEntry(id: number, entry: Partial<{
   const fields: string[] = []
   const values: SqlValue[] = []
 
+  if (entry.comment !== undefined) { fields.push('comment = ?'); values.push(entry.comment) }
   if (entry.noteType !== undefined) { fields.push('note_type = ?'); values.push(entry.noteType) }
   if (entry.object !== undefined) { fields.push('object = ?'); values.push(entry.object) }
   if (entry.objectGroup !== undefined) { fields.push('object_group = ?'); values.push(entry.objectGroup) }
@@ -295,6 +310,7 @@ function rowToEntry(row: unknown[]): LogEntry {
   return {
     id: row[0] as number,
     note: row[1] as string,
+    comment: (row[12] as string | null) || '',
     date: row[2] as string,
     noteType: row[3] as NoteType,
     object: row[4] as string,
@@ -623,15 +639,15 @@ export function searchEntries(query: string, limit = 50): LogEntry[] {
   return result[0].values.map(rowToEntry)
 }
 
-export function importFromCSV(rows: { note: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string }[]): number {
+export function importFromCSV(rows: { note: string; comment?: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string }[]): number {
   const d = getDatabase()
   let imported = 0
   d.run('BEGIN TRANSACTION')
   try {
     for (const row of rows) {
       d.run(
-        'INSERT INTO log_entries (note, date, note_type, object, object_group, object_type, source) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [row.note, row.date, row.noteType, row.object, row.objectGroup, row.objectType, row.source]
+        'INSERT INTO log_entries (note, comment, date, note_type, object, object_group, object_type, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [row.note, row.comment || '', row.date, row.noteType, row.object, row.objectGroup, row.objectType, row.source]
       )
       imported++
     }
@@ -665,6 +681,7 @@ export function getEntryByNotionPageId(notionPageId: string): LogEntry | null {
  */
 export function updateEntryFromNotion(id: number, entry: {
   note?: string
+  comment?: string
   date?: string
   noteType?: string
   object?: string
@@ -677,6 +694,7 @@ export function updateEntryFromNotion(id: number, entry: {
   const values: SqlValue[] = []
 
   if (entry.note !== undefined) { fields.push('note = ?'); values.push(entry.note) }
+  if (entry.comment !== undefined) { fields.push('comment = ?'); values.push(entry.comment) }
   if (entry.date !== undefined) { fields.push('date = ?'); values.push(entry.date) }
   if (entry.noteType !== undefined) { fields.push('note_type = ?'); values.push(entry.noteType) }
   if (entry.object !== undefined) { fields.push('object = ?'); values.push(entry.object) }
@@ -731,6 +749,7 @@ export function deleteEntriesNotInNotion(remotePageIds: Set<string>): number {
 
 export function insertEntryFromNotion(entry: {
   note: string
+  comment?: string
   date: string
   noteType: NoteType
   object?: string
@@ -741,8 +760,8 @@ export function insertEntryFromNotion(entry: {
 }): number {
   const d = getDatabase()
   d.run(
-    'INSERT INTO log_entries (note, date, note_type, object, object_group, object_type, source, notion_page_id, synced) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)',
-    [entry.note, entry.date, entry.noteType, entry.object || '', entry.objectGroup || '', entry.objectType || '', entry.source || '', entry.notionPageId]
+    'INSERT INTO log_entries (note, comment, date, note_type, object, object_group, object_type, source, notion_page_id, synced) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)',
+    [entry.note, entry.comment || '', entry.date, entry.noteType, entry.object || '', entry.objectGroup || '', entry.objectType || '', entry.source || '', entry.notionPageId]
   )
   const result = d.exec('SELECT last_insert_rowid() as id')
   const id = result[0].values[0][0] as number

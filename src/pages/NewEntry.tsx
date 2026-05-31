@@ -20,6 +20,7 @@ export function NewEntry() {
       if (entry) {
         setInitialData({
           note: entry.note,
+          comment: entry.comment,
           date: entry.date,
           noteType: entry.noteType,
           object: entry.object,
@@ -33,6 +34,7 @@ export function NewEntry() {
       // Build initial data from query params for prefill (e.g. from Profiles / Equipment)
       const prefilled: LogEntryFormData = {
         note: searchParams.get('note') || '',
+        comment: searchParams.get('comment') || '',
         date: searchParams.get('date') || new Date().toISOString().split('T')[0],
         noteType: searchParams.get('noteType') || 'Activity',
         object: searchParams.get('object') || '',

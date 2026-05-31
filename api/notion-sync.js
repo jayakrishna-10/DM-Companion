@@ -1,6 +1,6 @@
 // Vercel serverless function: Sync entries to Notion
 // Reads NOTION_API_KEY and NOTION_DATABASE_ID from environment variables
-// Expects POST body: { entries: Array<{ id, note, date, noteType, object, objectGroup, objectType, source }> }
+// Expects POST body: { entries: Array<{ id, note, comment, date, noteType, object, objectGroup, objectType, source }> }
 // Returns: { synced: Array<{ id, notionPageId }>, failed: Array<{ id, error }> }
 
 export default async function handler(req, res) {
@@ -48,6 +48,9 @@ export default async function handler(req, res) {
     }
     if (entry.source) {
       properties['Source'] = { multi_select: [{ name: entry.source }] }
+    }
+    if (entry.comment) {
+      properties['Comment'] = { rich_text: [{ text: { content: entry.comment } }] }
     }
 
     try {

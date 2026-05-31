@@ -1,6 +1,6 @@
 // Vercel serverless function: Pull entries from Notion database
 // Reads NOTION_API_KEY and NOTION_DATABASE_ID from environment variables
-// Returns: { entries: Array<{ note, date, noteType, object, objectGroup, objectType, source, notionPageId }> }
+// Returns: { entries: Array<{ note, comment, date, noteType, object, objectGroup, objectType, source, notionPageId }> }
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -85,8 +85,13 @@ export default async function handler(req, res) {
       const sourceProp = props['Source'] || props['source']
       const source = sourceProp?.multi_select?.map(s => s.name).join(', ') || ''
 
+      // Comment is a rich_text property
+      const commentProp = props['Comment'] || props['comment']
+      const comment = commentProp?.rich_text?.map(t => t.plain_text).join('') || ''
+
       return {
         note,
+        comment,
         date,
         noteType,
         object: objectValue,

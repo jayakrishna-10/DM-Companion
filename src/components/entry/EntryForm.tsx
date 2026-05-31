@@ -21,6 +21,7 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
   const isEditing = editId !== undefined
   const [noteType, setNoteType] = useState<string>(initialData?.noteType || 'Activity')
   const [note, setNote] = useState(initialData?.note || '')
+  const [comment, setComment] = useState(initialData?.comment || '')
   const [date, setDate] = useState(initialData?.date || new Date().toISOString().split('T')[0])
   const [object, setObject] = useState(initialData?.object || '')
   const [objectGroup, setObjectGroup] = useState(initialData?.objectGroup || '')
@@ -202,7 +203,7 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
     }
 
     setIsSubmitting(true)
-    const data: LogEntryFormData = { note, date, noteType: activeNoteType, object, objectGroup, objectType, source }
+    const data: LogEntryFormData = { note, comment, date, noteType: activeNoteType, object, objectGroup, objectType, source }
 
     if (isEditing) {
       editEntry(editId, data)
@@ -213,6 +214,7 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
       addEntry(data)
       toast('Entry saved', 'success')
       setNote('')
+      setComment('')
       setObject('')
       setObjectGroup('')
       setObjectType('')
@@ -486,6 +488,15 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
         placeholder="Describe the activity, complaint, or abnormality..."
         disabled={isEditing}
         className={isEditing ? 'opacity-60 cursor-not-allowed' : ''}
+      />
+
+      <TextArea
+        label="Operator Comment"
+        value={comment}
+        onChange={e => setComment(e.target.value)}
+        placeholder="Add a short follow-up, handover note, or clarification..."
+        rows={2}
+        className="min-h-[64px] text-xs"
       />
 
       <div className="space-y-1.5">

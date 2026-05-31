@@ -2,6 +2,7 @@ import type { NoteType, ObjectHierarchy, ObjectOption } from '@/types'
 
 export interface ParsedEntry {
   note: string
+  comment: string
   date: string
   noteType: NoteType
   object: string
@@ -204,6 +205,7 @@ export function autoTagEntries(
 
     return {
       note,
+      comment: '',
       date,
       noteType,
       object: obj?.object || '',

@@ -4,6 +4,7 @@ import { Pencil, ExternalLink, Copy } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
+import { CommentThread } from '@/components/entry/CommentThread'
 
 interface EntryDetailSheetProps {
   entry: LogEntry | null
@@ -42,6 +43,8 @@ export function EntryDetailSheet({ entry, isOpen, onClose, onEdit, onDuplicate }
         </div>
 
         <p className="text-[13px] text-neutral-200 leading-relaxed">{entry.note}</p>
+
+        <CommentThread comment={entry.comment} />
 
         <div className="space-y-2 py-3 border-t border-neutral-800/50">
           {[

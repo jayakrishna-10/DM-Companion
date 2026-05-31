@@ -17,7 +17,7 @@ interface DatabaseContextType {
   filterEntries: (options?: { noteType?: NoteType; objectType?: string; search?: string }) => LogEntry[]
   getHierarchy: () => ObjectHierarchy
   getOpenIssues: () => OpenIssue[]
-  importData: (rows: { note: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string }[]) => number
+  importData: (rows: { note: string; comment?: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string }[]) => number
   clearData: () => void
   exportData: () => LogEntry[]
   syncToNotion: () => Promise<void>
@@ -132,6 +132,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
 
   const editEntry = useCallback((id: number, entry: Partial<LogEntryFormData>) => {
     updateEntry(id, {
+      comment: entry.comment,
       noteType: entry.noteType,
       object: entry.object,
       objectGroup: entry.objectGroup,
@@ -162,7 +163,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     return getOpenIssues()
   }, [])
 
-  const importData = useCallback((rows: { note: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string }[]) => {
+  const importData = useCallback((rows: { note: string; comment?: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string }[]) => {
     const count = importFromCSV(rows)
     refreshEntries()
     return count
@@ -262,7 +263,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
           console.log('[sync] Pull response:', pullData.entries?.length ?? 0, 'entries from Notion')
           const existingPageIds = getExistingNotionPageIds()
           console.log('[sync] Existing page IDs in local DB:', existingPageIds.size)
-          const allEntries = (pullData.entries as { note: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string; notionPageId: string }[])
+          const allEntries = (pullData.entries as { note: string; comment: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string; notionPageId: string }[])
 
           const notionNoteTypes = replaceNoteTypeTagsFromNotionEntries(allEntries)
           console.log(`[sync] Loaded ${notionNoteTypes} note types from current Notion entries`)
@@ -281,6 +282,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
             for (const entry of newEntries) {
               insertEntryFromNotion({
                 note: entry.note,
+                comment: entry.comment,
                 date: entry.date,
                 noteType: entry.noteType as NoteType,
                 object: entry.object,
@@ -311,8 +313,12 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
           for (const entry of existingNotionEntries) {
             const localEntry = getEntryByNotionPageId(entry.notionPageId)
             if (localEntry) {
+              // Preserve local operator edits so they can be pushed to Notion later in this sync.
+              if (localEntry.synced === 0) continue
+
               // Check if any field differs
               if (localEntry.note !== entry.note ||
+                  localEntry.comment !== (entry.comment || '') ||
                   localEntry.date !== entry.date ||
                   localEntry.noteType !== entry.noteType ||
                   localEntry.object !== (entry.object || '') ||
@@ -321,6 +327,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
                   localEntry.source !== (entry.source || '')) {
                 updateEntryFromNotion(localEntry.id, {
                   note: entry.note,
+                  comment: entry.comment || '',
                   date: entry.date,
                   noteType: entry.noteType,
                   object: entry.object || '',
@@ -389,6 +396,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
               entries: toCreate.map(e => ({
                 id: e.id,
                 note: e.note,
+                comment: e.comment,
                 date: e.date,
                 noteType: e.noteType,
                 object: e.object,
@@ -443,6 +451,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
               updates: toUpdate.map(e => ({
                 id: e.id,
                 notionPageId: e.notionPageId,
+                comment: e.comment,
                 noteType: e.noteType,
                 object: e.object,
                 objectGroup: e.objectGroup,
@@ -635,6 +644,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
   const addEntry = useCallback((entry: LogEntryFormData): number => {
     const id = insertEntry({
       note: entry.note,
+      comment: entry.comment,
       date: entry.date,
       noteType: entry.noteType,
       object: entry.object,
@@ -660,7 +670,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     }
 
     const pullData = await pullRes.json()
-    const allEntries = (pullData.entries || []) as { note: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string; notionPageId: string }[]
+    const allEntries = (pullData.entries || []) as { note: string; comment: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string; notionPageId: string }[]
 
     clearAllData()
 
@@ -679,6 +689,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     for (const entry of allEntries) {
       insertEntryFromNotion({
         note: entry.note,
+        comment: entry.comment,
         date: entry.date,
         noteType: entry.noteType as NoteType,
         object: entry.object,

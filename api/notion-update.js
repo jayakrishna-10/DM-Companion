@@ -1,6 +1,6 @@
 // Vercel serverless function: Update existing entries in Notion
 // Reads NOTION_API_KEY from environment variables
-// Expects POST body: { updates: Array<{ id, notionPageId, noteType, object, objectGroup, objectType, source }> }
+// Expects POST body: { updates: Array<{ id, notionPageId, comment, noteType, object, objectGroup, objectType, source }> }
 // Returns: { updated: Array<{ id, notionPageId }>, failed: Array<{ id, error }> }
 
 export default async function handler(req, res) {
@@ -38,6 +38,7 @@ export default async function handler(req, res) {
     // Note/title and Date are intentionally controlled by Notion after creation.
     const properties = {
       'Note Type': { select: entry.noteType ? { name: entry.noteType } : null },
+      'Comment': { rich_text: entry.comment ? [{ text: { content: entry.comment } }] : [] },
     }
 
     if (entry.object) {

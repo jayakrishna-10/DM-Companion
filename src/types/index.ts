@@ -1,6 +1,7 @@
 export interface LogEntry {
   id: number
   note: string
+  comment: string
   date: string
   noteType: NoteType
   object: string
@@ -80,6 +81,7 @@ export interface Tag {
 
 export interface LogEntryFormData {
   note: string
+  comment: string
   date: string
   noteType: NoteType
   object: string

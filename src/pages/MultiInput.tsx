@@ -62,7 +62,7 @@ export function MultiInput() {
     }
 
     const tagged = autoTagEntries(lines, date, source, hierarchy)
-    const withIds = tagged.map((entry, i) => ({ ...entry, id: i }))
+    const withIds = tagged.map((entry, i) => ({ ...entry, comment: '', id: i }))
     setEntries(withIds)
     setStep('review')
   }
@@ -86,6 +86,7 @@ export function MultiInput() {
       if (!entry.note.trim()) continue
       addEntry({
         note: entry.note,
+        comment: entry.comment,
         date: entry.date,
         noteType: entry.noteType,
         object: entry.object,
@@ -466,6 +467,11 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
           <p className="text-sm text-neutral-200 leading-snug line-clamp-2">
             {entry.note}
           </p>
+          {entry.comment.trim() && (
+            <div className="mt-2 border-l border-teal-500/20 pl-2">
+              <p className="text-[10px] leading-snug text-neutral-500 line-clamp-2">{entry.comment}</p>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <button
@@ -549,6 +555,17 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
                   value={localNote}
                   onChange={e => handleNoteChange(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 text-sm focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20 resize-none min-h-[60px]"
+                  rows={2}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Operator Comment</label>
+                <textarea
+                  value={entry.comment}
+                  onChange={e => onUpdate({ comment: e.target.value })}
+                  placeholder="Add a short follow-up or handover note..."
+                  className="w-full px-3 py-2 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20 resize-none min-h-[56px]"
                   rows={2}
                 />
               </div>
