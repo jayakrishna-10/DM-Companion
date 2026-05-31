@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
-import { initDatabase, getDatabase, insertEntry, insertEntryFromNotion, updateEntry, updateEntryFromNotion, getEntriesByDate, getEntryCountsByType, searchEntries, getEntries, importFromCSV, clearAllData, exportAllEntries, getObjectHierarchy, getUnsyncedEntries, getExistingNotionPageIds, getEntryByNotionPageId, markAsSynced, isDuplicateEntry, countEntriesMissingFromNotion, getOpenIssues, getTags, getNoteTypes, getSourceTags, addTag, deleteTag, upsertTagsFromNotion, replaceNoteTypeTagsFromNotionEntries, upsertEntryTags, insertSyncLog, getSyncLogs, getDbStats, clearSyncLogs, insertPlantPhoto, getPlantPhotos, getPlantPhotoTags, getUnsyncedPlantPhotos, markPlantPhotoSynced, updatePlantPhoto, deletePlantPhoto, insertPhotoSyncLog, getPhotoSyncLogs } from '@/db/database'
+import { initDatabase, getDatabase, insertEntry, insertEntryFromNotion, updateEntry, updateEntryFromNotion, getEntriesByDate, getEntryCountsByType, searchEntries, getEntries, importFromCSV, clearAllData, exportAllEntries, getObjectHierarchy, getUnsyncedEntries, getExistingNotionPageIds, getEntryByNotionPageId, markAsSynced, deleteEntriesNotInNotion, getOpenIssues, getTags, getNoteTypes, getSourceTags, addTag, deleteTag, upsertTagsFromNotion, replaceNoteTypeTagsFromNotionEntries, upsertEntryTags, insertSyncLog, getSyncLogs, getDbStats, clearSyncLogs, insertPlantPhoto, getPlantPhotos, getPlantPhotoTags, getUnsyncedPlantPhotos, markPlantPhotoSynced, updatePlantPhoto, deletePlantPhoto, insertPhotoSyncLog, getPhotoSyncLogs } from '@/db/database'
 import { seedDatabase } from '@/db/seed'
 import type { LogEntry, LogEntryFormData, NoteType, ObjectHierarchy, OpenIssue, SyncStatus, Tag, SyncLog, DbStats, PlantPhoto, PhotoFilterOptions, PhotoSyncLog } from '@/types'
 
@@ -207,10 +207,12 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     let totalPushed = 0
     let totalFailed = 0
     let totalDuplicatesSkipped = 0
-    const totalDeleted = 0
+    let totalDeleted = 0
     let totalUpdated = 0
     let totalTagsUpserted = 0
     let syncError = ''
+    let pulledNotionPageIds: Set<string> | null = null
+    let entryPushFailed = false
 
     try {
       // --- PULL from Notion first ---
@@ -268,34 +270,15 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
 
           // Build set of all remote page IDs for deletion detection
           const remotePageIds = new Set(allEntries.map(e => e.notionPageId))
+          pulledNotionPageIds = remotePageIds
 
-          // --- Detect entries missing from Notion without deleting local data ---
-          const missingFromNotion = countEntriesMissingFromNotion(remotePageIds)
-          if (missingFromNotion > 0) {
-            console.log(`[sync] Retained ${missingFromNotion} local entries that are missing from Notion`)
-          }
-
-          // --- Insert new entries (deduplicated by pageId AND content) ---
+          // --- Insert every Notion page that is missing locally by page ID ---
           const newEntries = allEntries.filter((e) => !existingPageIds.has(e.notionPageId))
           let inserted = 0
-          let duplicatesSkipped = 0
+          const duplicatesSkipped = 0
 
           if (newEntries.length > 0) {
             for (const entry of newEntries) {
-              // Content-based dedup: skip if an identical entry already exists locally
-              if (isDuplicateEntry({
-                note: entry.note,
-                date: entry.date,
-                noteType: entry.noteType,
-                object: entry.object,
-                objectGroup: entry.objectGroup,
-                objectType: entry.objectType,
-              })) {
-                console.log(`[sync] Skipping duplicate from Notion: "${entry.note.substring(0, 40)}..."`)
-                duplicatesSkipped++
-                continue
-              }
-
               insertEntryFromNotion({
                 note: entry.note,
                 date: entry.date,
@@ -389,7 +372,11 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
       } else {
         // Separate into creates (no notionPageId) and updates (has notionPageId)
         const toCreate = unsynced.filter(e => !e.notionPageId)
-        const toUpdate = unsynced.filter(e => !!e.notionPageId)
+        const toUpdate = unsynced.filter(e => !!e.notionPageId && (!pulledNotionPageIds || pulledNotionPageIds.has(e.notionPageId)))
+        const staleUpdates = unsynced.length - toCreate.length - toUpdate.length
+        if (staleUpdates > 0) {
+          console.log(`[sync] Skipping ${staleUpdates} updates for entries missing from Notion; they will be removed from the local mirror`)
+        }
 
         // --- CREATE new entries ---
         if (toCreate.length > 0) {
@@ -417,12 +404,14 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
             console.error('[sync] Create push failed:', res.status, data.error || res.statusText)
             syncError += (syncError ? '; ' : '') + `Create push failed: ${res.status} ${data.error || res.statusText}`
             totalFailed += toCreate.length
+            entryPushFailed = true
           } else {
             const data = await res.json()
             console.log(`[sync] Create result: ${data.synced.length} synced, ${data.failed.length} failed`)
 
             totalPushed += data.synced.length
             totalFailed += data.failed.length
+            if (data.failed.length > 0) entryPushFailed = true
 
             if (data.failed.length > 0) {
               console.error('[sync] Failed creates:', data.failed)
@@ -434,6 +423,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
             for (const synced of data.synced) {
               syncedIds.push(synced.id)
               database.run('UPDATE log_entries SET notion_page_id = ? WHERE id = ?', [synced.notionPageId, synced.id])
+              pulledNotionPageIds?.add(synced.notionPageId)
             }
 
             if (syncedIds.length > 0) {
@@ -467,12 +457,14 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
             console.error('[sync] Update push failed:', updateRes.status, data.error || updateRes.statusText)
             syncError += (syncError ? '; ' : '') + `Update push failed: ${updateRes.status} ${data.error || updateRes.statusText}`
             totalFailed += toUpdate.length
+            entryPushFailed = true
           } else {
             const data = await updateRes.json()
             console.log(`[sync] Update result: ${data.updated.length} updated, ${data.failed.length} failed`)
 
             totalUpdated += data.updated.length
             totalFailed += data.failed.length
+            if (data.failed.length > 0) entryPushFailed = true
 
             if (data.failed.length > 0) {
               console.error('[sync] Failed updates:', data.failed)
@@ -484,6 +476,19 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
               markAsSynced(updatedIds)
             }
           }
+        }
+      }
+
+      // --- Reconcile local entries to the authoritative Notion page set ---
+      // Only delete after a complete pull, and only if entry creates/updates did not fail.
+      // This makes SQLite an exact mirror of Notion after successful syncs while avoiding
+      // destructive cleanup during partial/network failures.
+      if (pulledNotionPageIds && !pullFailed && !entryPushFailed) {
+        const deletedFromMirror = deleteEntriesNotInNotion(pulledNotionPageIds)
+        if (deletedFromMirror > 0) {
+          console.log(`[sync] Deleted ${deletedFromMirror} local entries not present in Notion`)
+          totalDeleted += deletedFromMirror
+          refreshEntries()
         }
       }
 

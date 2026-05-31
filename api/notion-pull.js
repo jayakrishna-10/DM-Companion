@@ -95,9 +95,9 @@ export default async function handler(req, res) {
         source,
         notionPageId: page.id,
       }
-    }).filter(e => e.note || e.date) // Keep entries that have at least a note or a date
+    })
 
-    console.log(`[notion-pull] Returning ${entries.length} valid entries (filtered from ${allPages.length} total)`)
+    console.log(`[notion-pull] Returning ${entries.length} entries from ${allPages.length} Notion pages`)
     return res.status(200).json({ entries })
   } catch (err) {
     console.error('[notion-pull] Exception:', err.message)

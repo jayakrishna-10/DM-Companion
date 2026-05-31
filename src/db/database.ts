@@ -660,8 +660,8 @@ export function getEntryByNotionPageId(notionPageId: string): LogEntry | null {
 
 /**
  * Update a local entry from Notion data.
- * Unlike updateEntry(), this does NOT set synced = 0 because the update
- * originates from Notion (the entry is already in sync).
+ * Unlike updateEntry(), this marks the row as synced because the update
+ * originates from the authoritative Notion data.
  */
 export function updateEntryFromNotion(id: number, entry: {
   note?: string
@@ -687,7 +687,7 @@ export function updateEntryFromNotion(id: number, entry: {
   if (fields.length === 0) return
 
   fields.push("updated_at = datetime('now', 'localtime')")
-  // Do NOT set synced = 0 — this update comes from Notion, entry stays in sync
+  fields.push('synced = 1')
   values.push(id)
 
   d.run(`UPDATE log_entries SET ${fields.join(', ')} WHERE id = ?`, values)
@@ -695,46 +695,38 @@ export function updateEntryFromNotion(id: number, entry: {
 }
 
 /**
- * Check if an entry with the same content already exists locally.
- * Used to prevent duplicates when pulling from Notion.
- * Matches on: note, date, noteType, object, objectGroup, objectType
+ * Delete local entries that are not present in the authoritative Notion result set.
+ * This is only intended to run after a complete, successful Notion pull. Pass any
+ * page IDs created during the current sync in remotePageIds before calling this.
  */
-export function isDuplicateEntry(entry: {
-  note: string
-  date: string
-  noteType: string
-  object: string
-  objectGroup: string
-  objectType: string
-}): boolean {
+export function deleteEntriesNotInNotion(remotePageIds: Set<string>): number {
   const d = getDatabase()
-  const result = d.exec(
-    "SELECT id FROM log_entries WHERE note = ? AND date = ? AND note_type = ? AND object = ? AND object_group = ? AND object_type = ? LIMIT 1",
-    [entry.note, entry.date, entry.noteType, entry.object || '', entry.objectGroup || '', entry.objectType || '']
-  )
-  return result.length > 0 && result[0].values.length > 0
-}
-
-/**
- * Count local entries whose notionPageId is NOT in the provided set of remote IDs.
- * Entries are intentionally retained locally even if they are missing from Notion.
- * This preserves the app as a non-destructive local mirror/cache.
- */
-export function countEntriesMissingFromNotion(remotePageIds: Set<string>): number {
-  const d = getDatabase()
-  // Find all local entries that have a notionPageId but it's not in the remote set
-  const result = d.exec("SELECT id, notion_page_id FROM log_entries WHERE notion_page_id IS NOT NULL AND notion_page_id != ''")
+  const result = d.exec('SELECT id, notion_page_id FROM log_entries')
   if (result.length === 0) return 0
 
-  let missing = 0
-  for (const row of result[0].values) {
-    const pageId = row[1] as string
-    if (!remotePageIds.has(pageId)) {
-      missing++
-    }
-  }
+  const idsToDelete = result[0].values
+    .filter((row: unknown[]) => {
+      const pageId = row[1] as string | null
+      return !pageId || !remotePageIds.has(pageId)
+    })
+    .map((row: unknown[]) => row[0] as number)
 
-  return missing
+  if (idsToDelete.length === 0) return 0
+
+  d.run('BEGIN TRANSACTION')
+  try {
+    for (let i = 0; i < idsToDelete.length; i += 500) {
+      const chunk = idsToDelete.slice(i, i + 500)
+      const placeholders = chunk.map(() => '?').join(',')
+      d.run(`DELETE FROM log_entries WHERE id IN (${placeholders})`, chunk)
+    }
+    d.run('COMMIT')
+  } catch (err) {
+    d.run('ROLLBACK')
+    throw err
+  }
+  scheduleSave()
+  return idsToDelete.length
 }
 
 export function insertEntryFromNotion(entry: {
