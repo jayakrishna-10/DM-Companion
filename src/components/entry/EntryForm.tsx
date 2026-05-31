@@ -39,6 +39,7 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
   const [newObjectName, setNewObjectName] = useState('')
 
   const hierarchy = getHierarchy()
+  const activeNoteType = noteTypes.includes(noteType) ? noteType : (noteTypes[0] || noteType)
 
   const typeOptions = [...hierarchy.types.map(t => ({ value: t, label: t })), { value: '__add_new__', label: '+ Add new type...' }]
   const groupOptions = objectType ? [...(hierarchy.groups[objectType] || []).map(g => ({ value: g, label: g })), { value: '__add_new__', label: '+ Add new group...' }] : []
@@ -60,16 +61,10 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
   }, [note, hierarchy])
 
   // Whether the suggested noteType differs from the current one
-  const showNoteTypeSuggestion = suggestions.noteType && suggestions.noteType !== noteType
+  const showNoteTypeSuggestion = suggestions.noteType && noteTypes.includes(suggestions.noteType) && suggestions.noteType !== activeNoteType
 
   // Whether there are object suggestions not already selected
   const objectSuggestions = suggestions.objects.filter(s => s.object !== object)
-
-  const handleAddNoteType = (name: string) => {
-    addTag({ name, category: 'note_type' })
-    setNoteType(name)
-    toast('Note type added', 'success')
-  }
 
   const handleAddSource = () => {
     const trimmed = newSourceName.trim()
@@ -201,8 +196,13 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
       return
     }
 
+    if (!noteTypes.includes(activeNoteType)) {
+      toast('Please sync from Notion to load valid note types', 'error')
+      return
+    }
+
     setIsSubmitting(true)
-    const data: LogEntryFormData = { note, date, noteType, object, objectGroup, objectType, source }
+    const data: LogEntryFormData = { note, date, noteType: activeNoteType, object, objectGroup, objectType, source }
 
     if (isEditing) {
       editEntry(editId, data)
@@ -227,10 +227,9 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
       <div className="space-y-1.5">
         <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Note Type</label>
         <SegmentedControl
-          value={noteType}
+          value={activeNoteType}
           onChange={setNoteType}
           noteTypes={noteTypes}
-          onAddType={handleAddNoteType}
         />
         {/* Auto-detected note type suggestion */}
         <AnimatePresence>

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
-import { initDatabase, getDatabase, insertEntry, insertEntryFromNotion, updateEntry, updateEntryFromNotion, getEntriesByDate, getEntryCountsByType, searchEntries, getEntries, importFromCSV, clearAllData, exportAllEntries, getObjectHierarchy, getUnsyncedEntries, getExistingNotionPageIds, getEntryByNotionPageId, markAsSynced, isDuplicateEntry, countEntriesMissingFromNotion, getOpenIssues, getTags, getNoteTypes, getSourceTags, addTag, deleteTag, upsertTagsFromNotion, upsertEntryTags, insertSyncLog, getSyncLogs, getDbStats, clearSyncLogs, insertPlantPhoto, getPlantPhotos, getPlantPhotoTags, getUnsyncedPlantPhotos, markPlantPhotoSynced, updatePlantPhoto, deletePlantPhoto, insertPhotoSyncLog, getPhotoSyncLogs } from '@/db/database'
+import { initDatabase, getDatabase, insertEntry, insertEntryFromNotion, updateEntry, updateEntryFromNotion, getEntriesByDate, getEntryCountsByType, searchEntries, getEntries, importFromCSV, clearAllData, exportAllEntries, getObjectHierarchy, getUnsyncedEntries, getExistingNotionPageIds, getEntryByNotionPageId, markAsSynced, isDuplicateEntry, countEntriesMissingFromNotion, getOpenIssues, getTags, getNoteTypes, getSourceTags, addTag, deleteTag, upsertTagsFromNotion, replaceNoteTypeTagsFromNotionEntries, upsertEntryTags, insertSyncLog, getSyncLogs, getDbStats, clearSyncLogs, insertPlantPhoto, getPlantPhotos, getPlantPhotoTags, getUnsyncedPlantPhotos, markPlantPhotoSynced, updatePlantPhoto, deletePlantPhoto, insertPhotoSyncLog, getPhotoSyncLogs } from '@/db/database'
 import { seedDatabase } from '@/db/seed'
 import type { LogEntry, LogEntryFormData, NoteType, ObjectHierarchy, OpenIssue, SyncStatus, Tag, SyncLog, DbStats, PlantPhoto, PhotoFilterOptions, PhotoSyncLog } from '@/types'
 
@@ -224,10 +224,6 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
             const schemaData = await schemaRes.json()
             const notionTags: { name: string; category: 'note_type' | 'source' | 'object_type' | 'object_group' | 'object'; color?: string }[] = []
 
-            // Map note type options
-            for (const opt of (schemaData.noteTypes || [])) {
-              notionTags.push({ name: opt.name, category: 'note_type', color: opt.color })
-            }
             // Map source options
             for (const opt of (schemaData.sources || [])) {
               notionTags.push({ name: opt.name, category: 'source', color: opt.color })
@@ -265,6 +261,10 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
           const existingPageIds = getExistingNotionPageIds()
           console.log('[sync] Existing page IDs in local DB:', existingPageIds.size)
           const allEntries = (pullData.entries as { note: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string; notionPageId: string }[])
+
+          const notionNoteTypes = replaceNoteTypeTagsFromNotionEntries(allEntries)
+          console.log(`[sync] Loaded ${notionNoteTypes} note types from current Notion entries`)
+          refreshTags()
 
           // Build set of all remote page IDs for deletion detection
           const remotePageIds = new Set(allEntries.map(e => e.notionPageId))
@@ -659,10 +659,11 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
 
     clearAllData()
 
+    replaceNoteTypeTagsFromNotionEntries(allEntries)
+
     if (schemaRes?.ok) {
       const schemaData = await schemaRes.json()
       const notionTags: { name: string; category: 'note_type' | 'source' | 'object_type' | 'object_group' | 'object'; color?: string }[] = []
-      for (const opt of (schemaData.noteTypes || [])) notionTags.push({ name: opt.name, category: 'note_type', color: opt.color })
       for (const opt of (schemaData.sources || [])) notionTags.push({ name: opt.name, category: 'source', color: opt.color })
       for (const opt of (schemaData.objectTypes || [])) notionTags.push({ name: opt.name, category: 'object_type', color: opt.color })
       for (const opt of (schemaData.objectGroups || [])) notionTags.push({ name: opt.name, category: 'object_group', color: opt.color })
