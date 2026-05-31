@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
-import { initDatabase, getDatabase, insertEntry, insertEntryFromNotion, updateEntry, updateEntryFromNotion, deleteEntry, getEntriesByDate, getEntryCountsByType, searchEntries, getEntries, importFromCSV, clearAllData, exportAllEntries, getObjectHierarchy, getUnsyncedEntries, getExistingNotionPageIds, getEntryByNotionPageId, markAsSynced, isDuplicateEntry, deleteNotionRemovedEntries, getOpenIssues, getTags, getNoteTypes, getSourceTags, addTag, deleteTag, upsertTagsFromNotion, upsertEntryTags, insertSyncLog, getSyncLogs, getDbStats, clearSyncLogs, insertPlantPhoto, getPlantPhotos, getPlantPhotoTags, getUnsyncedPlantPhotos, markPlantPhotoSynced, updatePlantPhoto, deletePlantPhoto, insertPhotoSyncLog, getPhotoSyncLogs } from '@/db/database'
+import { initDatabase, getDatabase, insertEntry, insertEntryFromNotion, updateEntry, updateEntryFromNotion, getEntriesByDate, getEntryCountsByType, searchEntries, getEntries, importFromCSV, clearAllData, exportAllEntries, getObjectHierarchy, getUnsyncedEntries, getExistingNotionPageIds, getEntryByNotionPageId, markAsSynced, isDuplicateEntry, countEntriesMissingFromNotion, getOpenIssues, getTags, getNoteTypes, getSourceTags, addTag, deleteTag, upsertTagsFromNotion, upsertEntryTags, insertSyncLog, getSyncLogs, getDbStats, clearSyncLogs, insertPlantPhoto, getPlantPhotos, getPlantPhotoTags, getUnsyncedPlantPhotos, markPlantPhotoSynced, updatePlantPhoto, deletePlantPhoto, insertPhotoSyncLog, getPhotoSyncLogs } from '@/db/database'
 import { seedDatabase } from '@/db/seed'
 import type { LogEntry, LogEntryFormData, NoteType, ObjectHierarchy, OpenIssue, SyncStatus, Tag, SyncLog, DbStats, PlantPhoto, PhotoFilterOptions, PhotoSyncLog } from '@/types'
 
@@ -21,6 +21,7 @@ interface DatabaseContextType {
   clearData: () => void
   exportData: () => LogEntry[]
   syncToNotion: () => Promise<void>
+  reloadFromNotion: () => Promise<void>
   // Tag management
   tags: Tag[]
   noteTypes: string[]
@@ -131,8 +132,6 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
 
   const editEntry = useCallback((id: number, entry: Partial<LogEntryFormData>) => {
     updateEntry(id, {
-      note: entry.note,
-      date: entry.date,
       noteType: entry.noteType,
       object: entry.object,
       objectGroup: entry.objectGroup,
@@ -143,9 +142,8 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
   }, [refreshEntries])
 
   const removeEntry = useCallback((id: number) => {
-    deleteEntry(id)
-    refreshEntries()
-  }, [refreshEntries])
+    console.warn(`[data] Entry #${id} was not deleted. Entry deletion is disabled to preserve local data.`)
+  }, [])
 
   const search = useCallback((query: string): LogEntry[] => {
     if (!query.trim()) return []
@@ -209,7 +207,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     let totalPushed = 0
     let totalFailed = 0
     let totalDuplicatesSkipped = 0
-    let totalDeleted = 0
+    const totalDeleted = 0
     let totalUpdated = 0
     let totalTagsUpserted = 0
     let syncError = ''
@@ -271,11 +269,10 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
           // Build set of all remote page IDs for deletion detection
           const remotePageIds = new Set(allEntries.map(e => e.notionPageId))
 
-          // --- Delete local entries that were removed from Notion ---
-          const deletedCount = deleteNotionRemovedEntries(remotePageIds)
-          if (deletedCount > 0) {
-            console.log(`[sync] Deleted ${deletedCount} local entries that were removed from Notion`)
-            totalDeleted += deletedCount
+          // --- Detect entries missing from Notion without deleting local data ---
+          const missingFromNotion = countEntriesMissingFromNotion(remotePageIds)
+          if (missingFromNotion > 0) {
+            console.log(`[sync] Retained ${missingFromNotion} local entries that are missing from Notion`)
           }
 
           // --- Insert new entries (deduplicated by pageId AND content) ---
@@ -456,8 +453,6 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
               updates: toUpdate.map(e => ({
                 id: e.id,
                 notionPageId: e.notionPageId,
-                note: e.note,
-                date: e.date,
                 noteType: e.noteType,
                 object: e.object,
                 objectGroup: e.objectGroup,
@@ -647,6 +642,61 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     return id
   }, [refreshEntries, syncToNotion])
 
+  const reloadFromNotion = useCallback(async () => {
+    if (!navigator.onLine) {
+      throw new Error('Cannot reload from Notion while offline')
+    }
+
+    const schemaRes = await fetch('/api/notion-schema').catch(() => null)
+    const pullRes = await fetch('/api/notion-pull')
+    if (!pullRes.ok) {
+      const errData = await pullRes.json().catch(() => ({}))
+      throw new Error(`Notion reload failed: ${pullRes.status} ${errData.error || pullRes.statusText}`)
+    }
+
+    const pullData = await pullRes.json()
+    const allEntries = (pullData.entries || []) as { note: string; date: string; noteType: string; object: string; objectGroup: string; objectType: string; source: string; notionPageId: string }[]
+
+    clearAllData()
+
+    if (schemaRes?.ok) {
+      const schemaData = await schemaRes.json()
+      const notionTags: { name: string; category: 'note_type' | 'source' | 'object_type' | 'object_group' | 'object'; color?: string }[] = []
+      for (const opt of (schemaData.noteTypes || [])) notionTags.push({ name: opt.name, category: 'note_type', color: opt.color })
+      for (const opt of (schemaData.sources || [])) notionTags.push({ name: opt.name, category: 'source', color: opt.color })
+      for (const opt of (schemaData.objectTypes || [])) notionTags.push({ name: opt.name, category: 'object_type', color: opt.color })
+      for (const opt of (schemaData.objectGroups || [])) notionTags.push({ name: opt.name, category: 'object_group', color: opt.color })
+      for (const opt of (schemaData.objects || [])) notionTags.push({ name: opt.name, category: 'object', color: opt.color })
+      if (notionTags.length > 0) upsertTagsFromNotion(notionTags)
+    }
+
+    for (const entry of allEntries) {
+      insertEntryFromNotion({
+        note: entry.note,
+        date: entry.date,
+        noteType: entry.noteType as NoteType,
+        object: entry.object,
+        objectGroup: entry.objectGroup,
+        objectType: entry.objectType,
+        source: entry.source,
+        notionPageId: entry.notionPageId,
+      })
+    }
+
+    const entriesWithObjects = allEntries.filter(e => e.objectType || e.objectGroup || e.object)
+    if (entriesWithObjects.length > 0) {
+      upsertEntryTags(entriesWithObjects.map(e => ({
+        objectType: e.objectType,
+        objectGroup: e.objectGroup,
+        object: e.object,
+      })))
+    }
+
+    refreshEntries()
+    refreshTags()
+    refreshLogs()
+  }, [refreshEntries, refreshTags, refreshLogs])
+
   // Hourly auto-sync
   useEffect(() => {
     const HOUR = 60 * 60 * 1000
@@ -663,7 +713,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     <DatabaseContext.Provider value={{
       isReady, entries, counts, syncStatus, lastSyncTime,
       refreshEntries, addEntry, editEntry, removeEntry, search, filterEntries,
-      getHierarchy: getHierarchyFn, getOpenIssues: getOpenIssuesFn, importData, clearData: clearDataFn, exportData, syncToNotion,
+      getHierarchy: getHierarchyFn, getOpenIssues: getOpenIssuesFn, importData, clearData: clearDataFn, exportData, syncToNotion, reloadFromNotion,
       tags, noteTypes, sourceTags, addTag: addTagFn, removeTag: removeTagFn, refreshTags,
       syncLogs, photoSyncLogs, dbStats, clearLogs: clearLogsFn, refreshLogs,
       photos, photoTags, addPhoto, updatePhoto, removePhoto, filterPhotos, refreshPhotos,

@@ -1,6 +1,6 @@
 // Vercel serverless function: Update existing entries in Notion
 // Reads NOTION_API_KEY from environment variables
-// Expects POST body: { updates: Array<{ id, notionPageId, note, date, noteType, object, objectGroup, objectType, source }> }
+// Expects POST body: { updates: Array<{ id, notionPageId, noteType, object, objectGroup, objectType, source }> }
 // Returns: { updated: Array<{ id, notionPageId }>, failed: Array<{ id, error }> }
 
 export default async function handler(req, res) {
@@ -34,10 +34,9 @@ export default async function handler(req, res) {
       continue
     }
 
-    // Build properties object — clear empty select fields by setting to null
+    // Build properties object — only tag-like fields are updated from the app.
+    // Note/title and Date are intentionally controlled by Notion after creation.
     const properties = {
-      'Note': { title: [{ text: { content: entry.note } }] },
-      'Date': { date: { start: entry.date } },
       'Note Type': { select: entry.noteType ? { name: entry.noteType } : null },
     }
 

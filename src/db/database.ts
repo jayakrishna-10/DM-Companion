@@ -259,8 +259,6 @@ export function insertEntry(entry: {
 }
 
 export function updateEntry(id: number, entry: Partial<{
-  note: string
-  date: string
   noteType: NoteType
   object: string
   objectGroup: string
@@ -271,8 +269,6 @@ export function updateEntry(id: number, entry: Partial<{
   const fields: string[] = []
   const values: SqlValue[] = []
 
-  if (entry.note !== undefined) { fields.push('note = ?'); values.push(entry.note) }
-  if (entry.date !== undefined) { fields.push('date = ?'); values.push(entry.date) }
   if (entry.noteType !== undefined) { fields.push('note_type = ?'); values.push(entry.noteType) }
   if (entry.object !== undefined) { fields.push('object = ?'); values.push(entry.object) }
   if (entry.objectGroup !== undefined) { fields.push('object_group = ?'); values.push(entry.objectGroup) }
@@ -720,29 +716,25 @@ export function isDuplicateEntry(entry: {
 }
 
 /**
- * Delete local entries whose notionPageId is NOT in the provided set of remote IDs.
- * This handles Notion-side deletions: if an entry was deleted from Notion,
- * we remove the corresponding local entry.
- * Returns the number of entries deleted.
+ * Count local entries whose notionPageId is NOT in the provided set of remote IDs.
+ * Entries are intentionally retained locally even if they are missing from Notion.
+ * This preserves the app as a non-destructive local mirror/cache.
  */
-export function deleteNotionRemovedEntries(remotePageIds: Set<string>): number {
+export function countEntriesMissingFromNotion(remotePageIds: Set<string>): number {
   const d = getDatabase()
   // Find all local entries that have a notionPageId but it's not in the remote set
   const result = d.exec("SELECT id, notion_page_id FROM log_entries WHERE notion_page_id IS NOT NULL AND notion_page_id != ''")
   if (result.length === 0) return 0
 
-  let deleted = 0
+  let missing = 0
   for (const row of result[0].values) {
-    const id = row[0] as number
     const pageId = row[1] as string
     if (!remotePageIds.has(pageId)) {
-      d.run('DELETE FROM log_entries WHERE id = ?', [id])
-      deleted++
+      missing++
     }
   }
 
-  if (deleted > 0) scheduleSave()
-  return deleted
+  return missing
 }
 
 export function insertEntryFromNotion(entry: {

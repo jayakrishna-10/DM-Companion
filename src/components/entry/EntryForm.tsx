@@ -18,6 +18,7 @@ interface EntryFormProps {
 
 export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
   const { addEntry, editEntry, getHierarchy, noteTypes, sourceTags, addTag } = useDatabase()
+  const isEditing = editId !== undefined
   const [noteType, setNoteType] = useState<string>(initialData?.noteType || 'Activity')
   const [note, setNote] = useState(initialData?.note || '')
   const [date, setDate] = useState(initialData?.date || new Date().toISOString().split('T')[0])
@@ -203,9 +204,9 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
     setIsSubmitting(true)
     const data: LogEntryFormData = { note, date, noteType, object, objectGroup, objectType, source }
 
-    if (editId !== undefined) {
+    if (isEditing) {
       editEntry(editId, data)
-      toast('Entry updated', 'success')
+      toast('Entry tags updated', 'success')
     } else if (onSubmit) {
       onSubmit(data)
     } else {
@@ -475,13 +476,17 @@ export function EntryForm({ initialData, onSubmit, editId }: EntryFormProps) {
         type="date"
         value={date}
         onChange={e => setDate(e.target.value)}
+        disabled={isEditing}
+        className={isEditing ? 'opacity-60 cursor-not-allowed' : ''}
       />
 
       <TextArea
-        label="Note *"
+        label={isEditing ? 'Note * (read-only after creation)' : 'Note *'}
         value={note}
         onChange={e => setNote(e.target.value)}
         placeholder="Describe the activity, complaint, or abnormality..."
+        disabled={isEditing}
+        className={isEditing ? 'opacity-60 cursor-not-allowed' : ''}
       />
 
       <div className="space-y-1.5">

@@ -1,7 +1,6 @@
 import type { LogEntry } from '@/types'
 import { getNoteTypeColor } from '@/types'
-import { Pencil, Trash2, ExternalLink, Copy } from 'lucide-react'
-import { useState } from 'react'
+import { Pencil, ExternalLink, Copy } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
@@ -15,21 +14,10 @@ interface EntryDetailSheetProps {
   onDuplicate: (entry: LogEntry) => void
 }
 
-export function EntryDetailSheet({ entry, isOpen, onClose, onEdit, onDelete, onDuplicate }: EntryDetailSheetProps) {
-  const [confirmDelete, setConfirmDelete] = useState(false)
+export function EntryDetailSheet({ entry, isOpen, onClose, onEdit, onDuplicate }: EntryDetailSheetProps) {
   const navigate = useNavigate()
 
   if (!entry) return null
-
-  const handleDelete = () => {
-    if (!confirmDelete) {
-      setConfirmDelete(true)
-      setTimeout(() => setConfirmDelete(false), 3000)
-      return
-    }
-    onDelete(entry.id)
-    onClose()
-  }
 
   const handleObjectClick = () => {
     if (entry.object) {
@@ -105,14 +93,6 @@ export function EntryDetailSheet({ entry, isOpen, onClose, onEdit, onDelete, onD
             onClick={() => { onDuplicate(entry); onClose() }}
           >
             <Copy size={14} /> Duplicate
-          </Button>
-          <Button
-            variant={confirmDelete ? 'danger' : 'ghost'}
-            size="sm"
-            className="flex-1"
-            onClick={handleDelete}
-          >
-            <Trash2 size={14} /> {confirmDelete ? 'Confirm?' : 'Delete'}
           </Button>
         </div>
       </div>

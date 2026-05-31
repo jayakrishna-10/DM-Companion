@@ -3,15 +3,16 @@ import Papa from 'papaparse'
 import { useDatabase } from '@/hooks/useDatabase'
 import { useSync } from '@/hooks/useSync'
 import { Button } from '@/components/ui/Button'
-import { RefreshCw, Download, Upload, Trash2, Database, CheckCircle2, AlertCircle } from 'lucide-react'
+import { RefreshCw, Download, Upload, Trash2, Database, CheckCircle2, AlertCircle, CloudDownload } from 'lucide-react'
 import { toast } from '@/components/ui/Toaster'
 
 export function Settings() {
-  const { exportData, clearData, importData } = useDatabase()
+  const { exportData, clearData, importData, reloadFromNotion } = useDatabase()
   const { sync, syncStatus, lastSyncTime } = useSync()
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
+  const [confirmReload, setConfirmReload] = useState(false)
 
   const handleTestConnection = async () => {
     setTesting(true)
@@ -76,7 +77,9 @@ export function Settings() {
           if (!isNaN(parsed.getTime())) {
             dateStr = parsed.toISOString().split('T')[0]
           }
-        } catch { }
+        } catch {
+          // Keep the original CSV date value if parsing fails.
+        }
         return {
           note: (row['Note'] || '').trim(),
           date: dateStr,
@@ -102,6 +105,21 @@ export function Settings() {
     clearData()
     toast('All data cleared', 'success')
     setConfirmClear(false)
+  }
+
+  const handleReloadFromNotion = async () => {
+    if (!confirmReload) {
+      setConfirmReload(true)
+      setTimeout(() => setConfirmReload(false), 5000)
+      return
+    }
+    try {
+      await reloadFromNotion()
+      toast('Reloaded local entries from Notion', 'success')
+      setConfirmReload(false)
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Reload from Notion failed', 'error')
+    }
   }
 
   return (
@@ -161,6 +179,9 @@ export function Settings() {
           </Button>
           <Button size="sm" variant="secondary" onClick={handleImport} className="w-full justify-start">
             <Upload size={14} /> Import Data (CSV)
+          </Button>
+          <Button size="sm" variant={confirmReload ? 'danger' : 'secondary'} onClick={handleReloadFromNotion} disabled={syncStatus === 'syncing'} className="w-full justify-start">
+            <CloudDownload size={14} /> {confirmReload ? 'Confirm Reload from Notion?' : 'Reload Local Entries from Notion'}
           </Button>
           <Button size="sm" variant={confirmClear ? 'danger' : 'ghost'} onClick={handleClear} className="w-full justify-start">
             <Trash2 size={14} /> {confirmClear ? 'Confirm Clear All Data?' : 'Clear Local Data'}
