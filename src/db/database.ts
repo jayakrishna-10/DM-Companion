@@ -860,6 +860,29 @@ export function upsertTagsFromNotion(tags: { name: string; category: 'note_type'
   return upserted
 }
 
+export function replaceNoteTypeTagsFromNotionEntries(entries: { noteType: string }[]): number {
+  const d = getDatabase()
+  const noteTypes = Array.from(new Set(entries.map(e => e.noteType).filter(Boolean)))
+
+  d.run('BEGIN TRANSACTION')
+  try {
+    d.run("DELETE FROM tags WHERE category = 'note_type'")
+    noteTypes.forEach((name, index) => {
+      d.run(
+        'INSERT INTO tags (name, category, color, sort_order, synced) VALUES (?, ?, ?, ?, 1)',
+        [name, 'note_type', getNoteTypeColor(name), index]
+      )
+    })
+    d.run('COMMIT')
+  } catch {
+    d.run('ROLLBACK')
+    return 0
+  }
+
+  scheduleSave()
+  return noteTypes.length
+}
+
 /**
  * Derive and upsert object_type, object_group, and object tags from entry data.
  * Uses hierarchical naming: "type|group" for groups, "type|group|name" for objects.

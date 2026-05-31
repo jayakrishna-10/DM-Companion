@@ -6,7 +6,7 @@ import { getNoteTypeColor } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { toast } from '@/components/ui/Toaster'
-import { ClipboardList, Sparkles, ChevronDown, ChevronUp, Pencil, Check, X, ListChecks, ArrowLeft, Plus } from 'lucide-react'
+import { ClipboardList, Sparkles, ChevronDown, ChevronUp, Pencil, Check, X, ListChecks, ArrowLeft } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 
 interface ParsedEntry extends LogEntryFormData {
@@ -269,8 +269,6 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
   const [localNote, setLocalNote] = useState(entry.note)
   const [searchQuery, setSearchQuery] = useState('')
   const [showDropdowns, setShowDropdowns] = useState(false)
-  const [showAddNoteType, setShowAddNoteType] = useState(false)
-  const [newNoteTypeName, setNewNoteTypeName] = useState('')
   const [showAddSource, setShowAddSource] = useState(false)
   const [newSourceName, setNewSourceName] = useState('')
   const [showAddObjectType, setShowAddObjectType] = useState(false)
@@ -310,7 +308,7 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
     return { noteType: detectedType, objects: detectedObjects }
   }, [localNote, hierarchy])
 
-  const showNoteTypeSuggestion = suggestions.noteType && suggestions.noteType !== entry.noteType
+  const showNoteTypeSuggestion = suggestions.noteType && noteTypes.includes(suggestions.noteType) && suggestions.noteType !== entry.noteType
   const objectSuggestions = suggestions.objects.filter(s => s.object !== entry.object)
 
   const searchResults = useMemo(() => {
@@ -339,23 +337,12 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
 
   const applyNoteTypeSuggestion = () => {
     if (suggestions.noteType) {
-      onUpdate({ noteType: suggestions.noteType as any })
+      onUpdate({ noteType: suggestions.noteType })
     }
   }
 
   const applyObjectSuggestion = (obj: ObjectOption) => {
     onUpdate({ object: obj.object, objectGroup: obj.objectGroup, objectType: obj.objectType })
-  }
-
-  const handleAddNoteType = () => {
-    const trimmed = newNoteTypeName.trim()
-    if (trimmed) {
-      addTag({ name: trimmed, category: 'note_type' })
-      onUpdate({ noteType: trimmed })
-      setNewNoteTypeName('')
-      setShowAddNoteType(false)
-      toast('Note type added', 'success')
-    }
   }
 
   const handleSourceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -531,47 +518,7 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
                       {shortenLabel(type)}
                     </button>
                   ))}
-                  <button
-                    type="button"
-                    onClick={() => setShowAddNoteType(true)}
-                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-dashed border-neutral-700 text-neutral-500 hover:text-neutral-300 hover:border-neutral-600 transition-all text-xs"
-                  >
-                    <Plus size={14} />
-                  </button>
                 </div>
-
-                {/* Inline add note type input */}
-                <AnimatePresence>
-                  {showAddNoteType && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="flex items-center gap-1.5 overflow-hidden"
-                    >
-                      <input
-                        type="text"
-                        value={newNoteTypeName}
-                        onChange={e => setNewNoteTypeName(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') handleAddNoteType()
-                          if (e.key === 'Escape') { setShowAddNoteType(false); setNewNoteTypeName('') }
-                        }}
-                        placeholder="New note type..."
-                        className="flex-1 h-8 px-2.5 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
-                        autoFocus
-                      />
-                      <button
-                        type="button"
-                        onClick={handleAddNoteType}
-                        disabled={!newNoteTypeName.trim()}
-                        className="h-8 w-8 flex items-center justify-center rounded-lg bg-teal-500 text-white text-xs disabled:opacity-50 transition-opacity"
-                      >
-                        <Check size={14} />
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
 
                 {/* Auto-detected note type suggestion */}
                 <AnimatePresence>
