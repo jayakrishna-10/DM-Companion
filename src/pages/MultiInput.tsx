@@ -310,6 +310,7 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
 
   const showNoteTypeSuggestion = suggestions.noteType && noteTypes.includes(suggestions.noteType) && suggestions.noteType !== entry.noteType
   const objectSuggestions = suggestions.objects.filter(s => s.object !== entry.object)
+  const noteTypeColumnCount = useMemo(() => Math.max(1, Math.ceil(noteTypes.length / 2)), [noteTypes.length])
 
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return []
@@ -435,14 +436,6 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
     }
   }
 
-  function shortenLabel(type: string): string {
-    if (type === 'Activity') return 'Act'
-    if (type === 'Complaints') return 'Cmpl'
-    if (type === 'Abnormality') return 'Abn'
-    if (type === 'Resolved Complaint') return 'RC'
-    return type.slice(0, 3)
-  }
-
   const noteTypeColor = getNoteTypeColor(entry.noteType)
 
   return (
@@ -503,19 +496,23 @@ function EntryCard({ entry, noteTypes, sourceTags, addTag, onUpdate, onRemove, h
               {/* Note Type */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Note Type</label>
-                <div className="flex flex-wrap gap-1.5">
+                <div
+                  className="grid gap-1 rounded-xl border border-neutral-800/50 bg-neutral-900/60 p-1"
+                  style={{ gridTemplateColumns: `repeat(${noteTypeColumnCount}, minmax(0, 1fr))` }}
+                >
                   {noteTypes.map(type => (
                     <button
                       key={type}
+                      type="button"
                       onClick={() => onUpdate({ noteType: type })}
-                      className="h-8 px-2.5 text-[11px] font-semibold rounded-lg border transition-all"
+                      className="flex min-h-7 min-w-0 items-center justify-center rounded-md border px-1.5 py-1 text-[9px] font-semibold leading-[1.05] tracking-wide transition-all hover:bg-neutral-800/80"
                       style={{
-                        backgroundColor: entry.noteType === type ? getNoteTypeColor(type) : 'transparent',
-                        borderColor: getNoteTypeColor(type),
-                        color: entry.noteType === type ? '#fff' : getNoteTypeColor(type),
+                        backgroundColor: entry.noteType === type ? `color-mix(in srgb, ${getNoteTypeColor(type)} 14%, transparent)` : 'rgba(38, 38, 38, 0.8)',
+                        borderColor: entry.noteType === type ? getNoteTypeColor(type) : 'rgb(38 38 38)',
+                        color: getNoteTypeColor(type),
                       }}
                     >
-                      {shortenLabel(type)}
+                      <span className="text-center">{type}</span>
                     </button>
                   ))}
                 </div>

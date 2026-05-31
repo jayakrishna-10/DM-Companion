@@ -1,20 +1,5 @@
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useMemo, useState } from 'react'
 import { getNoteTypeColor } from '@/types'
-import { motion } from 'framer-motion'
-
-/** Known abbreviations for default note types; custom types get first 4 chars + "." */
-const KNOWN_SHORT: Record<string, string> = {
-  'Activity': 'Act.',
-  'Complaints': 'Compl.',
-  'Abnormality': 'Abnorm.',
-  'Resolved Complaint': 'Resolv.',
-}
-
-function getShortLabel(type: string): string {
-  if (KNOWN_SHORT[type]) return KNOWN_SHORT[type]
-  if (type.length <= 5) return type
-  return type.slice(0, 4) + '.'
-}
 
 interface SegmentedControlProps {
   value: string
@@ -24,23 +9,10 @@ interface SegmentedControlProps {
 }
 
 export function SegmentedControl({ value, onChange, noteTypes, onAddType }: SegmentedControlProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const [indicator, setIndicator] = useState({ left: 0, width: 0 })
   const [showInput, setShowInput] = useState(false)
   const [newTypeName, setNewTypeName] = useState('')
-
-  useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
-    const btn = container.querySelector<HTMLButtonElement>(`[data-type="${value}"]`)
-    if (btn) {
-      setIndicator({
-        left: btn.offsetLeft - container.clientLeft + 2,
-        width: btn.offsetWidth - 4,
-      })
-    }
-  }, [value, noteTypes])
+  const columnCount = useMemo(() => Math.max(1, Math.ceil(noteTypes.length / 2)), [noteTypes.length])
 
   useEffect(() => {
     if (showInput && inputRef.current) {
@@ -71,35 +43,29 @@ export function SegmentedControl({ value, onChange, noteTypes, onAddType }: Segm
     <div className="space-y-1.5">
       <div className="flex items-center gap-1.5">
         <div
-          ref={containerRef}
-          className="relative flex bg-neutral-900/60 border-neutral-800/50 rounded-xl p-1 flex-1"
-          style={{ scrollbarWidth: 'none' }}
+          className="grid flex-1 gap-1 rounded-xl border border-neutral-800/50 bg-neutral-900/60 p-1"
+          style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}
         >
           {noteTypes.map((type) => (
             <button
               key={type}
+              type="button"
               data-type={type}
               onClick={() => onChange(type)}
-              className="relative h-8 text-xs font-semibold tracking-wide rounded-lg transition-colors duration-150 z-10 flex items-center justify-center gap-1 flex-1 min-w-0"
-              style={{ color: value === type ? '#fff' : getNoteTypeColor(type) }}
+              className="flex min-h-7 min-w-0 items-center justify-center rounded-md border px-1.5 py-1 text-[9px] font-semibold leading-[1.05] tracking-wide transition-all duration-150 hover:bg-neutral-800/80"
+              style={{
+                backgroundColor: value === type ? `color-mix(in srgb, ${getNoteTypeColor(type)} 14%, transparent)` : 'rgba(38, 38, 38, 0.8)',
+                borderColor: value === type ? getNoteTypeColor(type) : 'rgb(38 38 38)',
+                color: getNoteTypeColor(type),
+              }}
             >
-              <span className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: getNoteTypeColor(type) }} />
-              {/* Short label on mobile, full label on sm+ screens */}
-              <span className="sm:hidden truncate">{getShortLabel(type)}</span>
-              <span className="hidden sm:inline truncate">{type}</span>
+              <span className="text-center">{type}</span>
             </button>
           ))}
-          <motion.div
-            layoutId="segment-bg"
-            className="absolute top-1 bottom-1 rounded-lg pointer-events-none"
-            style={{ backgroundColor: getNoteTypeColor(value) }}
-            initial={false}
-            animate={{ left: indicator.left, width: indicator.width }}
-            transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-          />
         </div>
         {onAddType && (
           <button
+            type="button"
             onClick={() => setShowInput(!showInput)}
             className="flex-shrink-0 w-7 h-7 rounded-full bg-neutral-800/80 border-neutral-800 text-neutral-400 flex items-center justify-center text-xs hover:text-neutral-200 transition-colors"
             title="Add note type"
@@ -123,6 +89,7 @@ export function SegmentedControl({ value, onChange, noteTypes, onAddType }: Segm
             className="flex-1 h-8 px-3 rounded-lg bg-neutral-900/60 border-neutral-800/50 text-neutral-200 placeholder:text-neutral-500 text-xs focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20"
           />
           <button
+            type="button"
             onClick={handleAddType}
             disabled={!newTypeName.trim()}
             className="h-8 px-3 rounded-lg bg-teal-500 text-white text-xs font-semibold disabled:opacity-40 hover:bg-teal-400 transition-colors"
